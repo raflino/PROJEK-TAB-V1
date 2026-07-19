@@ -1,0 +1,17 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "LocalEquipmentDb": "Server=db.oleander-forrester.my.id;Database=DB_KomatsuDiagnostic;User Id=user_tab;Password=KomDiag@2026;MultipleActiveResultSets=true;TrustServerCertificate=True"
+  },
+  "Jwt": {
+    "Key": "AstraDiagnosticSuperSecretKey2025_JanganSampaiBocor",
+    "Issuer": "AstraTechBackend",
+    "Audience": "AstraMobileUsers"
+  }
+}
