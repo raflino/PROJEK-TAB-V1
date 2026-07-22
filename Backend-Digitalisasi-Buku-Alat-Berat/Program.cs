@@ -3,9 +3,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using Dapper;
-
 using astratech_apps_backend.Repositories.Implementations;
-using astratech_apps_backend.Services;
+using astratech_apps_backend.Services.Implementations;
+using astratech_apps_backend.Services.Interfaces;
 using astratech_apps_backend.Repositories.Interfaces;
 using astratech_apps_backend.Helpers;
 
@@ -14,7 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 DefaultTypeMap.MatchNamesWithUnderscores = true;
-
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo

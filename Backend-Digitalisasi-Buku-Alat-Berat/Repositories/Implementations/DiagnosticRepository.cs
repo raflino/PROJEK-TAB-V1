@@ -224,5 +224,44 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             return finalResult;
         }
+
+        public async Task<(Dictionary<string, object?>? header, List<Dictionary<string, object?>> causes)> GetDiagnosticDetailByIdAsync(string mode, int id)
+        {
+            Dictionary<string, object?>? header = null;
+            var causes = new List<Dictionary<string, object?>>();
+
+            using var connection = CreateConnection();
+            using var command = new SqlCommand("sp_GetDiagnosticDetailById", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@mode", mode);
+            command.Parameters.AddWithValue("@id", id);
+
+            await connection.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                header = new Dictionary<string, object?>();
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    header[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
+                }
+            }
+
+            if (await reader.NextResultAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var cause = new Dictionary<string, object?>();
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        cause[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
+                    }
+                    causes.Add(cause);
+                }
+            }
+
+            return (header, causes);
+        }
     }
 }

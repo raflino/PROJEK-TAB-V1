@@ -1,25 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Auth Screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
-
-// Main Screens
 import HomeScreen from '../screens/HomeScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ScanScreen from '../screens/ScanScreen';
 import RiwayatScreen from '../screens/RiwayatScreen';
 import RiwayatDetailScreen from '../screens/RiwayatDetailScreen';
 import ProfileScreen from '../screens/ProfilScreen';
-
-// Katalog & Detail Screens
 import KatalogScreen from '../screens/KatalogScreen';
-import DetailScreen from '../screens/DetailScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -71,12 +63,9 @@ const MainTabs = ({ route }) => {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Scan" component={ScanScreen} />
-
-      {/* Tab Riwayat hanya muncul untuk lecturer */}
       {isLecturer && (
         <Tab.Screen name="Riwayat" component={RiwayatStackScreen} />
       )}
-
       <Tab.Screen name="Profil" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -85,17 +74,11 @@ const MainTabs = ({ route }) => {
 export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {/* AUTH */}
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-
-      {/* MAIN — kirim role lewat params */}
       <Stack.Screen name="Main" component={MainTabs} />
-
-      {/* SUB-PAGES */}
       <Stack.Screen name="Katalog" component={KatalogScreen} />
-      <Stack.Screen name="Detail" component={DetailScreen} />
     </Stack.Navigator>
   );
 }

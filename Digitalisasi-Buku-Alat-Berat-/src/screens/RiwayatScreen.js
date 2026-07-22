@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { API_ENDPOINTS } from '../data/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const NAVY = '#001F3F';
 const YELLOW = '#FFB800';
@@ -21,14 +22,33 @@ const RiwayatScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState([]);
   const [selectedType, setSelectedType] = useState('CODE');
+  
 
   const fetchHistory = useCallback(async () => {
     try {
       setLoading(true);
+
+      const session = await AsyncStorage.getItem('user_session');
+
+      if (!session) {
+        console.warn('Session not found');
+        return;
+      }
+
+      const { token } = JSON.parse(session);
+
       const response = await fetch(
-        `${API_ENDPOINTS.historySummary}?diagnosisType=${selectedType}`
+        `${API_ENDPOINTS.historySummary}?diagnosisType=${selectedType}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
       );
+
       const result = await response.json();
+
       if (result.success) {
         setData(result.data || []);
       } else {
@@ -173,6 +193,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F2F3F7',
   },
+
   header: {
     backgroundColor: NAVY,
     paddingHorizontal: 24,
@@ -180,24 +201,28 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
+
   headerTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
     letterSpacing: 0.3,
-    paddingTop: 16,
+    paddingTop: 10,
   },
+
   body: {
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 20,
   },
+
   tabContainer: {
     flexDirection: 'row',
     marginBottom: 16,
     gap: 8,
   },
+
   tab: {
     flex: 1,
     paddingVertical: 10,
@@ -206,9 +231,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeTab: { backgroundColor: NAVY },
-  tabText: { color: '#666', fontWeight: '600', fontSize: 11 },
-  activeTabText: { color: '#FFF' },
+
+  activeTab: { 
+    backgroundColor: NAVY 
+  },
+
+  tabText: { 
+    color: '#666', 
+    fontWeight: '600', 
+    fontSize: 11 
+  },
+
+  activeTabText: { 
+    color: '#FFF' 
+  },
+
   card: {
     backgroundColor: '#FFF',
     borderRadius: 14,
@@ -220,23 +257,52 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
   },
+
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 10,
   },
+
   badge: {
     backgroundColor: YELLOW,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  code: { fontWeight: 'bold', color: NAVY },
-  searchBadge: { flexDirection: 'row', alignItems: 'center' },
-  searchCount: { marginLeft: 4, fontWeight: '700', color: NAVY },
-  title: { fontSize: 15, fontWeight: '600', color: '#333' },
-  emptyContainer: { alignItems: 'center', marginTop: 80 },
-  emptyText: { marginTop: 15, color: '#999' },
+
+  code: { 
+    fontWeight: 'bold', 
+    color: NAVY 
+  },
+
+  searchBadge: { 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
+
+  searchCount: { 
+    marginLeft: 4, 
+    fontWeight: '700', 
+    color: NAVY 
+  },
+
+  title: { 
+    fontSize: 15, 
+    fontWeight: '600', 
+    color: '#333' 
+  },
+
+  emptyContainer: { 
+    alignItems: 'center', 
+    marginTop: 80 
+  },
+
+  emptyText: { 
+    marginTop: 15, 
+    color: '#999'
+  },
+
   problemLabel: {
     marginTop: 8,
     fontSize: 11,
@@ -244,6 +310,7 @@ const styles = StyleSheet.create({
     color: NAVY,
     textTransform: 'uppercase',
   },
+
   problem: {
     marginTop: 4,
     fontSize: 13,
@@ -251,11 +318,13 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 18,
   },
+
   problemRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginTop: 2,
   },
+
   problemItem: {
     flex: 1,
     fontSize: 13,
