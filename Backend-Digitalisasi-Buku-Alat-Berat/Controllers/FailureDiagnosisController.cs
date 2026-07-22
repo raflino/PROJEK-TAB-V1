@@ -1,31 +1,26 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using System.Data;
-using astratech_apps_backend.DTOs; 
-using astratech_apps_backend.Repositories.Interfaces; 
-using Microsoft.Extensions.Configuration;
-using System.Collections.Generic;
-using System;
-using System.Threading.Tasks;
+using astratech_apps_backend.DTOs;
+using astratech_apps_backend.Services;
+using Microsoft.AspNetCore.Authorization;
 
-namespace astratech_apps_backend.Controllers 
+namespace astratech_apps_backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class FailureDiagnosisController : ControllerBase
     {
+        private readonly IFailureDiagnosisService _service;
         private readonly string _connectionString;
-        private readonly IFailureCodeRepository _failureCodeRepository;
 
-        public FailureDiagnosisController(IConfiguration configuration, IFailureCodeRepository failureCodeRepository)
+        public FailureDiagnosisController(IFailureDiagnosisService service, IConfiguration configuration)
         {
+            _service = service;
             _connectionString = configuration.GetConnectionString("LocalEquipmentDb") ?? "";
-            _failureCodeRepository = failureCodeRepository;
         }
 
-        // =====================================================================
-        // HELPER METHOD
-        // =====================================================================
         private bool HasColumn(SqlDataReader reader, string columnName)
         {
             for (int i = 0; i < reader.FieldCount; i++)
@@ -36,9 +31,6 @@ namespace astratech_apps_backend.Controllers
             return false;
         }
 
-        // =====================================================================
-        // 1. CENTRAL SEARCH DYNAMIC (LIST CODE, E, H, S)
-        // =====================================================================
         [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string mode, [FromQuery] string keyword)
         {
@@ -47,7 +39,7 @@ namespace astratech_apps_backend.Controllers
 
             try
             {
-                var results = await _failureCodeRepository.SearchCentralAsync(mode, keyword);
+                var results = await _service.SearchCentralAsync(mode, keyword);
                 return Ok(results);
             }
             catch (Exception ex)
@@ -56,9 +48,6 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        // =====================================================================
-        // 2. UNIFIED DETAIL (CODE, E, H, S)
-        // =====================================================================
         [HttpGet("detail")]
         public async Task<IActionResult> GetDetail([FromQuery] string mode, [FromQuery] long id)
         {
@@ -69,56 +58,52 @@ namespace astratech_apps_backend.Controllers
 
             try
             {
-                // Cabang S-Mode (TIDAK DIUBAH)
                 if (currentMode == "S")
                 {
-                    var result = await _failureCodeRepository.GetSModeDetailAsync(id);
-                    
-                    if (result == null) 
+                    var result = await _service.GetSModeDetailAsync(id);
+                    if (result == null)
                         return NotFound(new { message = "Data S-Mode tidak ditemukan." });
-                    
                     return Ok(result);
                 }
-                
-                // Cabang Mode CODE, E, H
                 else
                 {
-                    // Base URL sesuai mode
                     string imageBaseUrl = currentMode switch
                     {
                         "E" => $"{Request.Scheme}://{Request.Host}{Request.PathBase}/images/E-MODE/",
                         "H" => $"{Request.Scheme}://{Request.Host}{Request.PathBase}/images/H-MODE/",
-                        _ => $"{Request.Scheme}://{Request.Host}{Request.PathBase}/images/troubleshooting/" // CODE & default
+                        _ => $"{Request.Scheme}://{Request.Host}{Request.PathBase}/images/troubleshooting/"
                     };
-                    
+
                     dynamic? header = null;
                     List<object?> causes = new List<object?>();
 
-                    using (SqlConnection conn = new SqlConnection(_connectionString))
+                    using (var conn = new SqlConnection(_connectionString))
                     {
                         await conn.OpenAsync();
-                        SqlCommand cmd = new SqlCommand("sp_GetDiagnosticDetailById", conn);
+                        var cmd = new SqlCommand("sp_GetDiagnosticDetailById", conn);
                         cmd.CommandType = CommandType.StoredProcedure;
                         cmd.Parameters.AddWithValue("@mode", currentMode);
                         cmd.Parameters.AddWithValue("@id", Convert.ToInt32(id));
 
-                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                        using (var reader = await cmd.ExecuteReaderAsync())
                         {
                             if (await reader.ReadAsync())
                             {
                                 var headerDict = new Dictionary<string, object?>();
                                 for (int i = 0; i < reader.FieldCount; i++)
                                 {
-                                    headerDict.Add(reader.GetName(i), reader.GetValue(i) == DBNull.Value ? null : reader.GetValue(i));
+                                    headerDict.Add(reader.GetName(i), 
+                                        reader.GetValue(i) == DBNull.Value ? null : reader.GetValue(i));
                                 }
                                 header = headerDict;
                             }
 
-                            if (await reader.NextResultAsync()) 
+                            if (await reader.NextResultAsync())
                             {
                                 while (await reader.ReadAsync())
                                 {
-                                    causes.Add(new {
+                                    causes.Add(new
+                                    {
                                         id = HasColumn(reader, "id") ? reader["id"] : null,
                                         cause_number = HasColumn(reader, "cause_number") ? reader["cause_number"] : null,
                                         cause_description = HasColumn(reader, "cause_description") ? reader["cause_description"]?.ToString() ?? "" : "",
@@ -126,11 +111,11 @@ namespace astratech_apps_backend.Controllers
                                         standard_condition = HasColumn(reader, "standard_condition") ? reader["standard_condition"]?.ToString() : null,
                                         standard_value = HasColumn(reader, "standard_value") ? reader["standard_value"]?.ToString() : null,
                                         priority = HasColumn(reader, "priority") ? reader["priority"] : null,
-                                        special_method = (HasColumn(reader, "special_method") && reader["special_method"] != DBNull.Value) 
-                                                         ? reader["special_method"]?.ToString()?.Trim().ToLower() : "tidak",
-                                        image_url = (HasColumn(reader, "image_filename") && reader["image_filename"] != DBNull.Value) ? 
+                                        special_method = (HasColumn(reader, "special_method") && reader["special_method"] != DBNull.Value)
+                                                            ? reader["special_method"]?.ToString()?.Trim().ToLower() : "tidak",
+                                        image_url = (HasColumn(reader, "image_filename") && reader["image_filename"] != DBNull.Value) ?
                                                     imageBaseUrl + reader["image_filename"].ToString() : null,
-                                        standard_image_url = (HasColumn(reader, "standard_image_filename") && reader["standard_image_filename"] != DBNull.Value) ? 
+                                        standard_image_url = (HasColumn(reader, "standard_image_filename") && reader["standard_image_filename"] != DBNull.Value) ?
                                                              imageBaseUrl + reader["standard_image_filename"].ToString() : null,
                                         remedy = HasColumn(reader, "remedy") ? reader["remedy"]?.ToString() : null
                                     });
@@ -149,9 +134,6 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        // =====================================================================
-        // 3. S-MODE ANALYZE (TIDAK DIUBAH)
-        // =====================================================================
         [HttpPost("s-mode/analyze")]
         public async Task<IActionResult> AnalyzeDiagnosticFlow([FromBody] DiagnosticAnalyzeRequest request)
         {
@@ -160,9 +142,7 @@ namespace astratech_apps_backend.Controllers
 
             try
             {
-                string sModeBaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}/images/S-MODE/";
-                var result = await _failureCodeRepository.AnalyzeDiagnosticFlowAsync(request);
-                
+                var result = await _service.AnalyzeDiagnosticFlowAsync(request);
                 return Ok(result);
             }
             catch (SqlException ex) when (ex.Number >= 50000)

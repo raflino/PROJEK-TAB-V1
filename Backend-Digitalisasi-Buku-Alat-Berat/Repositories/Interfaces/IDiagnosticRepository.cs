@@ -1,16 +1,11 @@
-using astratech_apps_backend.Dtos;
+using astratech_apps_backend.DTOs;
 
-namespace astratech_apps_backend.Repositories.Interfaces;
-
-public interface IDiagnosticRepository
+namespace astratech_apps_backend.Repositories.Interfaces
 {
-    Task<IReadOnlyList<TroubleshootingCaseDto>> GetCasesAsync();
-
-    Task<CaseInputsResponseDto> GetCaseInputsAsync(string caseKey);
-
-    Task<RunDiagnosticResponseDto> RunDiagnosticFlowAsync(RunDiagnosticRequestDto request);
-
-    Task<ConfirmDiagnosticResponseDto> ConfirmDiagnosticCauseAsync(ConfirmDiagnosticRequestDto request);
-
-    Task<IReadOnlyList<CauseRankingDto>> GetDiagnosticScoresAsync(long sessionId);
+    public interface IDiagnosticRepository
+    {
+        Task<List<Dictionary<string, object?>>> SearchCentralAsync(string mode, string keyword);
+        Task<DiagnosticCaseDetailResponse?> GetSModeDetailAsync(long caseId);
+        Task<Dictionary<string, object?>> AnalyzeDiagnosticFlowAsync(DiagnosticAnalyzeRequest request);
+    }
 }

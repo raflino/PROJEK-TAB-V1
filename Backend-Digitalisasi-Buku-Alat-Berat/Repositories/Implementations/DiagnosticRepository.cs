@@ -1,229 +1,228 @@
 using System.Data;
-using Dapper;
 using Microsoft.Data.SqlClient;
-using astratech_apps_backend.Dtos;
+using astratech_apps_backend.DTOs;
 using astratech_apps_backend.Repositories.Interfaces;
+using Microsoft.Extensions.Configuration;
 
-namespace astratech_apps_backend.Repositories.Implementations;
-
-public class DiagnosticRepository : IDiagnosticRepository
+namespace astratech_apps_backend.Repositories.Implementations
 {
-    private readonly string _connectionString;
-
-    public DiagnosticRepository(IConfiguration configuration)
+    public class DiagnosticRepository : IDiagnosticRepository
     {
-        _connectionString = configuration.GetConnectionString("LocalEquipmentDb")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' tidak ditemukan.");
-    }
+        private readonly string _connectionString;
 
-    private SqlConnection CreateConnection()
-    {
-        return new SqlConnection(_connectionString);
-    }
+        public DiagnosticRepository(IConfiguration configuration)
+        {
+            _connectionString = configuration.GetConnectionString("LocalEquipmentDb")
+                ?? throw new InvalidOperationException("Connection string 'LocalEquipmentDb' tidak ditemukan.");
+        }
 
-    public async Task<IReadOnlyList<TroubleshootingCaseDto>> GetCasesAsync()
-    {
-        await using var connection = CreateConnection();
+        private SqlConnection CreateConnection()
+        {
+            return new SqlConnection(_connectionString);
+        }
 
-        var result = await connection.QueryAsync<TroubleshootingCaseDto>(
-            "dbo.usp_ListTroubleshootingCases",
-            commandType: CommandType.StoredProcedure
-        );
-
-        return result.ToList();
-    }
-
-    public async Task<CaseInputsResponseDto> GetCaseInputsAsync(string caseKey)
-    {
-        await using var connection = CreateConnection();
-
-        var response = new CaseInputsResponseDto();
-
-        using var grid = await connection.QueryMultipleAsync(
-            "dbo.usp_GetCaseInputs",
-            new
+        private object? GetSafeValue(SqlDataReader reader, string columnName)
+        {
+            for (int i = 0; i < reader.FieldCount; i++)
             {
-                case_key = caseKey
-            },
-            commandType: CommandType.StoredProcedure
-        );
-
-        var firstResult = (await grid.ReadAsync<CaseLookupRowDto>()).ToList();
-
-        response.Matches = firstResult;
-        response.ResultType = firstResult.FirstOrDefault()?.ResultType;
-        response.Message = firstResult.FirstOrDefault()?.Message;
-
-        if (grid.IsConsumed)
-        {
-            return response;
+                if (reader.GetName(i).Equals(columnName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return reader.IsDBNull(i) ? null : reader.GetValue(i);
+                }
+            }
+            return null;
         }
 
-        if (response.ResultType == "CASE_SELECTED")
+        public async Task<List<Dictionary<string, object?>>> SearchCentralAsync(string mode, string keyword)
         {
-            var inputs = await grid.ReadAsync<CaseInputDto>();
-            response.Inputs = inputs.ToList();
-            return response;
-        }
+            var results = new List<Dictionary<string, object?>>();
 
-        var secondResult = (await grid.ReadAsync<CaseLookupRowDto>()).ToList();
-        response.Matches.AddRange(secondResult);
+            using var connection = CreateConnection();
+            using var command = new SqlCommand("sp_CentralDiagnosticSearch", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@mode", mode.Trim().ToUpper());
+            command.Parameters.AddWithValue("@keyword", keyword.Trim());
+            command.Parameters.AddWithValue("@case_id", DBNull.Value);
 
-        var message = secondResult
-            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Message))
-            ?.Message;
-
-        if (!string.IsNullOrWhiteSpace(message))
-        {
-            response.Message = message;
-        }
-
-        return response;
-    }
-
-    public async Task<RunDiagnosticResponseDto> RunDiagnosticFlowAsync(RunDiagnosticRequestDto request)
-    {
-        if (request.SelectedRowIds == null || request.SelectedRowIds.Count == 0)
-        {
-            throw new ArgumentException("SelectedRowIds tidak boleh kosong.");
-        }
-
-        var selectedRowIdsText = string.Join(",", request.SelectedRowIds);
-
-        await using var connection = CreateConnection();
-
-        var response = new RunDiagnosticResponseDto();
-
-        using var grid = await connection.QueryMultipleAsync(
-            "dbo.usp_RunDiagnosticFlow",
-            new
+            await connection.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                case_code = request.CaseCode,
-                selected_row_ids = selectedRowIdsText,
-                machine_model = request.MachineModel,
-                serial_number = request.SerialNumber,
-                technician_name = request.TechnicianName
-            },
-            commandType: CommandType.StoredProcedure
-        );
-
-        response.Session = (await grid.ReadAsync<SessionResultDto>()).FirstOrDefault();
-
-        if (grid.IsConsumed)
-        {
-            return response;
+                var item = new Dictionary<string, object?>();
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    item.Add(reader.GetName(i), reader.IsDBNull(i) ? null : reader.GetValue(i));
+                }
+                results.Add(item);
+            }
+            return results;
         }
 
-        response.SelectedInputs = (await grid.ReadAsync<SelectedInputDto>()).ToList();
-
-        if (grid.IsConsumed)
+        public async Task<DiagnosticCaseDetailResponse?> GetSModeDetailAsync(long caseId)
         {
-            return response;
-        }
+            var response = new DiagnosticCaseDetailResponse();
+            bool headerFound = false;
 
-        var rankings = (await grid.ReadAsync<CauseRankingDto>()).ToList();
+            using var connection = CreateConnection();
+            using var command = new SqlCommand("sp_CentralDiagnosticSearch", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@mode", DBNull.Value);
+            command.Parameters.AddWithValue("@keyword", DBNull.Value);
+            command.Parameters.AddWithValue("@case_id", caseId);
 
-        if (rankings.Any(x => x.ResultType == "NO_CAUSE_RANKING"))
-        {
-            response.Message = rankings.FirstOrDefault()?.Message;
-            response.CauseRankings = rankings;
-            return response;
-        }
+            await connection.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
 
-        response.CauseRankings = rankings;
-
-        if (!grid.IsConsumed)
-        {
-            response.Conclusion = (await grid.ReadAsync<ConclusionDto>()).FirstOrDefault();
-        }
-
-        if (!grid.IsConsumed)
-        {
-            response.TroubleshootingSteps = (await grid.ReadAsync<TroubleshootingStepDto>()).ToList();
-        }
-
-        if (!grid.IsConsumed)
-        {
-            response.Remedies = (await grid.ReadAsync<RemedyDto>()).ToList();
-        }
-
-        return response;
-    }
-
-    public async Task<ConfirmDiagnosticResponseDto> ConfirmDiagnosticCauseAsync(ConfirmDiagnosticRequestDto request)
-    {
-        await using var connection = CreateConnection();
-
-        var response = new ConfirmDiagnosticResponseDto();
-
-        using var grid = await connection.QueryMultipleAsync(
-            "dbo.usp_ConfirmDiagnosticCause",
-            new
+            if (await reader.ReadAsync())
             {
-                session_id = request.SessionId,
-                case_cause_id = request.CaseCauseId,
-                is_confirmed = request.IsConfirmed,
-                note = request.Note
-            },
-            commandType: CommandType.StoredProcedure
-        );
+                headerFound = true;
+                response.CaseInfo.CaseId = Convert.ToInt64(GetSafeValue(reader, "case_id") ?? 0);
+                response.CaseInfo.CaseCode = GetSafeValue(reader, "case_code")?.ToString() ?? "";
+                response.CaseInfo.Title = GetSafeValue(reader, "title")?.ToString() ?? "";
+                response.CaseInfo.IsParent = GetSafeValue(reader, "is_parent") != null ? Convert.ToBoolean(GetSafeValue(reader, "is_parent")) : false;
+                response.CaseInfo.ParentCaseId = GetSafeValue(reader, "parent_case_id") != null ? Convert.ToInt64(GetSafeValue(reader, "parent_case_id")) : null;
+            }
 
-        if (request.IsConfirmed)
-        {
-            response.FinalResult = (await grid.ReadAsync<FinalResultDto>()).FirstOrDefault();
+            if (!headerFound) return null;
 
-            if (!grid.IsConsumed)
+            if (await reader.NextResultAsync())
             {
-                response.Remedies = (await grid.ReadAsync<RemedyDto>()).ToList();
+                while (await reader.ReadAsync())
+                {
+                    response.GeneralCauses.Add(new GeneralCauseDTO
+                    {
+                        CauseId = Convert.ToInt64(GetSafeValue(reader, "cause_id") ?? 0),
+                        Kind = GetSafeValue(reader, "kind")?.ToString(),
+                        CauseText = GetSafeValue(reader, "cause_text")?.ToString() ?? "",
+                        SequenceNo = Convert.ToInt32(GetSafeValue(reader, "sequence_no") ?? 0)
+                    });
+                }
+            }
+
+            if (await reader.NextResultAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    response.CaseInputs.Add(new CaseInputDTO
+                    {
+                        RowId = Convert.ToInt64(GetSafeValue(reader, "row_id") ?? 0),
+                        RowType = GetSafeValue(reader, "row_type")?.ToString() ?? "",
+                        RowText = GetSafeValue(reader, "row_text")?.ToString() ?? "",
+                        SequenceNo = Convert.ToInt32(GetSafeValue(reader, "sequence_no") ?? 0)
+                    });
+                }
             }
 
             return response;
         }
 
-        response.CheckResult = (await grid.ReadAsync<CheckResultDto>()).FirstOrDefault();
-
-        if (grid.IsConsumed)
+        public async Task<Dictionary<string, object?>> AnalyzeDiagnosticFlowAsync(DiagnosticAnalyzeRequest request)
         {
-            return response;
-        }
+            var finalResult = new Dictionary<string, object?>();
 
-        var nextRankings = (await grid.ReadAsync<CauseRankingDto>()).ToList();
+            dynamic? sessionInfo = null;
+            var selectedInputs = new List<object?>();
+            var causeRankings = new List<object?>();
+            dynamic? conclusion = null;
+            var finalActions = new List<object?>();
 
-        if (nextRankings.Any(x => x.ResultType == "NO_NEXT_CAUSE"))
-        {
-            response.Message = nextRankings.FirstOrDefault()?.Message;
-            response.NextCauseRankings = nextRankings;
-            return response;
-        }
+            using var connection = CreateConnection();
+            using var command = new SqlCommand("usp_RunDiagnosticFlow", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@case_code", request.CaseCode);
+            command.Parameters.AddWithValue("@selected_row_ids", request.SelectedRowIds);
+            command.Parameters.AddWithValue("@machine_model", (object?)request.MachineModel ?? DBNull.Value);
+            command.Parameters.AddWithValue("@serial_number", (object?)request.SerialNumber ?? DBNull.Value);
+            command.Parameters.AddWithValue("@technician_name", (object?)request.TechnicianName ?? DBNull.Value);
 
-        response.NextCauseRankings = nextRankings;
+            await connection.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
 
-        if (!grid.IsConsumed)
-        {
-            response.NextTroubleshootingSteps = (await grid.ReadAsync<TroubleshootingStepDto>()).ToList();
-        }
-
-        if (!grid.IsConsumed)
-        {
-            response.Remedies = (await grid.ReadAsync<RemedyDto>()).ToList();
-        }
-
-        return response;
-    }
-
-    public async Task<IReadOnlyList<CauseRankingDto>> GetDiagnosticScoresAsync(long sessionId)
-    {
-        await using var connection = CreateConnection();
-
-        var result = await connection.QueryAsync<CauseRankingDto>(
-            "dbo.usp_GetDiagnosticScores",
-            new
+            if (await reader.ReadAsync())
             {
-                session_id = sessionId
-            },
-            commandType: CommandType.StoredProcedure
-        );
+                sessionInfo = new
+                {
+                    session_id = GetSafeValue(reader, "session_id"),
+                    case_code = GetSafeValue(reader, "case_code")?.ToString(),
+                    case_title = GetSafeValue(reader, "case_title")?.ToString(),
+                    machine_model = GetSafeValue(reader, "machine_model")?.ToString(),
+                    serial_number = GetSafeValue(reader, "serial_number")?.ToString(),
+                    technician_name = GetSafeValue(reader, "technician_name")?.ToString(),
+                    status = GetSafeValue(reader, "status")?.ToString(),
+                    started_at = GetSafeValue(reader, "started_at")
+                };
+            }
 
-        return result.ToList();
+            if (await reader.NextResultAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    selectedInputs.Add(new
+                    {
+                        row_id = GetSafeValue(reader, "row_id"),
+                        row_type = GetSafeValue(reader, "row_type")?.ToString(),
+                        row_text = GetSafeValue(reader, "row_text")?.ToString(),
+                        sequence_no = GetSafeValue(reader, "sequence_no")
+                    });
+                }
+            }
+
+            if (await reader.NextResultAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    if (GetSafeValue(reader, "result_type")?.ToString() == "NO_CAUSE_RANKING")
+                    {
+                        finalResult["session"] = sessionInfo;
+                        finalResult["inputs"] = selectedInputs;
+                        finalResult["message"] = GetSafeValue(reader, "message")?.ToString();
+                        return finalResult;
+                    }
+
+                    causeRankings.Add(new
+                    {
+                        rank_no = GetSafeValue(reader, "rank_no"),
+                        case_cause_id = GetSafeValue(reader, "case_cause_id"),
+                        trouble_candidate = GetSafeValue(reader, "trouble_candidate")?.ToString(),
+                        symbol_count = GetSafeValue(reader, "symbol_count"),
+                        total_score = GetSafeValue(reader, "total_score"),
+                        remedy_text = GetSafeValue(reader, "remedy_text")?.ToString()
+                    });
+                }
+            }
+
+            if (await reader.NextResultAsync() && await reader.ReadAsync())
+            {
+                conclusion = new
+                {
+                    suspected_trouble = GetSafeValue(reader, "suspected_trouble")?.ToString(),
+                    recommended_remedy = GetSafeValue(reader, "recommended_remedy")?.ToString(),
+                    confidence_note = GetSafeValue(reader, "confidence_note")?.ToString()
+                };
+            }
+
+            if (await reader.NextResultAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    finalActions.Add(new
+                    {
+                        case_cause_id = GetSafeValue(reader, "case_cause_id"),
+                        cause_name = GetSafeValue(reader, "cause_name")?.ToString(),
+                        remedy_text = GetSafeValue(reader, "remedy_text")?.ToString(),
+                        row_id = GetSafeValue(reader, "row_id"),
+                        troubleshooting_step = GetSafeValue(reader, "troubleshooting_step")?.ToString()
+                    });
+                }
+            }
+
+            finalResult["session"] = sessionInfo;
+            finalResult["inputs"] = selectedInputs;
+            finalResult["rankings"] = causeRankings;
+            finalResult["conclusion"] = conclusion;
+            finalResult["final_actions"] = finalActions;
+
+            return finalResult;
+        }
     }
 }

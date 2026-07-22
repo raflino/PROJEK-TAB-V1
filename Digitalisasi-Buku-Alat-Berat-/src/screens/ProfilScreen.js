@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, ScrollView, Alert, RefreshControl
@@ -16,7 +16,6 @@ const ProfilScreen = ({ navigation }) => {
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Reload setiap kali tab Profil difokuskan
   useFocusEffect(
     useCallback(() => {
       loadUserData();
@@ -28,7 +27,6 @@ const ProfilScreen = ({ navigation }) => {
     else           setLoading(true);
 
     try {
-      // Ambil session dari AsyncStorage
       const session = await AsyncStorage.getItem('user_session');
       if (!session) {
         navigation.replace('Login');
@@ -38,24 +36,18 @@ const ProfilScreen = ({ navigation }) => {
       const sessionData = JSON.parse(session);
       const nim = sessionData.nim;
 
-      // Langsung gunakan data session dulu supaya UI tidak kosong
       setUser(sessionData);
 
-      // Sinkronkan dengan data terbaru dari API
       const response = await fetch(API_ENDPOINTS.getProfile(nim));
       if (response.ok) {
         const result = await response.json();
-        // Gabungkan data API dengan session (API lebih up-to-date)
         const merged = { ...sessionData, ...result };
         setUser(merged);
-        // Update session dengan data terbaru
         await AsyncStorage.setItem('user_session', JSON.stringify(merged));
       }
-      // Kalau API gagal, tetap tampilkan data dari session (tidak crash)
 
     } catch (error) {
-      console.error('Profile Error:', error);
-      // Tidak Alert — biarkan data session tetap tampil
+      console.warn('Failed to load user data:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -118,7 +110,6 @@ const ProfilScreen = ({ navigation }) => {
         />
       }
     >
-      {/* ── HEADER ───────────────────────────────────────────── */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Profile</Text>
         <View style={styles.syncBadge}>
@@ -127,7 +118,6 @@ const ProfilScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* ── HERO AVATAR ──────────────────────────────────────── */}
       <View style={styles.heroCard}>
         <View style={styles.avatarLarge}>
           <Text style={styles.avatarTxt}>{getInitials(user?.nama)}</Text>
@@ -142,12 +132,11 @@ const ProfilScreen = ({ navigation }) => {
         <View style={styles.idBadge}>
           <MaterialCommunityIcons name="card-account-details-outline" size={14} color={NAVY} />
           <Text style={styles.idText}>
-            {user?.role?.toLowerCase() === 'lecturer' ? 'NIDN' : 'NIM'}: {user?.nim}
+            {user?.role?.toLowerCase() === 'lecturer' ? 'NPK' : 'NIM'}: {user?.nim}
           </Text>
         </View>
       </View>
 
-      {/* ── INFO CARD ─────────────────────────────────────────── */}
       <View style={styles.infoCard}>
         <Text style={styles.cardSectionTitle}>ACCOUNT INFORMATION</Text>
 
@@ -169,7 +158,7 @@ const ProfilScreen = ({ navigation }) => {
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>
-              {user?.role?.toLowerCase() === 'lecturer' ? 'Lecturer ID (NIDN)' : 'Student ID (NIM)'}
+              {user?.role?.toLowerCase() === 'lecturer' ? 'Lecturer ID (NPK)' : 'Student ID (NIM)'}
             </Text>
             <Text style={styles.infoValue}>{user?.nim || '—'}</Text>
           </View>
@@ -218,7 +207,6 @@ const ProfilScreen = ({ navigation }) => {
         ) : null}
       </View>
 
-      {/* ── SIGN OUT ──────────────────────────────────────────── */}
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <MaterialCommunityIcons name="logout" size={20} color="#E53935" />
         <Text style={styles.logoutText}>Sign Out</Text>
@@ -236,13 +224,11 @@ const styles = StyleSheet.create({
   container:       { flex: 1, backgroundColor: '#F8F9FA', paddingHorizontal: 20 },
   center:          { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FA' },
 
-  // Header
   header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 55, marginBottom: 20 },
   headerTitle:     { fontSize: 22, fontWeight: 'bold', color: NAVY },
   syncBadge:       { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E8F5E9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   syncText:        { fontSize: 11, fontWeight: 'bold', color: NAVY },
 
-  // Hero
   heroCard:        { alignItems: 'center', backgroundColor: '#FFF', borderRadius: 24, padding: 28, marginBottom: 16, borderWidth: 1, borderColor: '#EEE', elevation: 2 },
   avatarLarge:     { width: 90, height: 90, borderRadius: 45, backgroundColor: NAVY, justifyContent: 'center', alignItems: 'center', marginBottom: 14, elevation: 4 },
   avatarTxt:       { color: GOLD, fontSize: 28, fontWeight: 'bold' },
@@ -252,7 +238,6 @@ const styles = StyleSheet.create({
   idBadge:         { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFDE7', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#FFD700' },
   idText:          { color: NAVY, fontWeight: 'bold', fontSize: 12 },
 
-  // Info card
   infoCard:        { backgroundColor: '#FFF', borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: '#EEE', elevation: 1 },
   cardSectionTitle:{ fontSize: 11, fontWeight: 'bold', color: '#AAA', letterSpacing: 1, marginBottom: 16 },
   infoRow:         { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 14 },
@@ -265,11 +250,10 @@ const styles = StyleSheet.create({
   statusDot:       { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2E7D32' },
   statusText:      { fontSize: 15, fontWeight: '600', color: '#2E7D32' },
 
-  // Logout
   logoutBtn:       { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#FFEBEE', marginBottom: 16, gap: 12 },
   logoutText:      { flex: 1, color: '#E53935', fontWeight: 'bold', fontSize: 15 },
 
   versionText:     { textAlign: 'center', color: '#CCC', fontSize: 12, marginBottom: 8 },
 });
 
-export default ProfilScreen;
+export default ProfilScreen; 

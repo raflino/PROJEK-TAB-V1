@@ -6,10 +6,6 @@ using System.Data;
 
 namespace astratech_apps_backend.Controllers
 {
-    /// <summary>
-    /// Auth Controller: Register, Login, Lupa Password via Security Questions.
-    /// Route: api/failure-auth
-    /// </summary>
     [Route("api/failure-auth")]
     [ApiController]
     public class FailureAuthController : ControllerBase
@@ -23,10 +19,6 @@ namespace astratech_apps_backend.Controllers
             _connectionString = configuration.GetConnectionString("LocalEquipmentDb") ?? "";
         }
 
-        // ════════════════════════════════════════════════════════════
-        // GET api/failure-auth/security-questions
-        // Ambil daftar pertanyaan keamanan untuk dropdown di frontend
-        // ════════════════════════════════════════════════════════════
         [HttpGet("security-questions")]
         public async Task<IActionResult> GetSecurityQuestions()
         {
@@ -57,10 +49,6 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        // ════════════════════════════════════════════════════════════
-        // POST api/failure-auth/register
-        // Body: { nim, nama, password, role, q1Id, a1, q2Id, a2, q3Id, a3 }
-        // ════════════════════════════════════════════════════════════
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest req)
         {
@@ -83,9 +71,7 @@ namespace astratech_apps_backend.Controllers
 
             try
             {
-                // Password disimpan plaintext
                 string hashedPassword = req.Password;
-                // Jawaban tetap di-lowercase dan di-trim agar tidak case-sensitive
                 string a1Hash = req.A1.Trim().ToLower();
                 string a2Hash = req.A2.Trim().ToLower();
                 string a3Hash = req.A3.Trim().ToLower();
@@ -122,10 +108,6 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        // ════════════════════════════════════════════════════════════
-        // POST api/failure-auth/login
-        // Body: { nim, password }
-        // ════════════════════════════════════════════════════════════
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest req)
         {
@@ -136,7 +118,6 @@ namespace astratech_apps_backend.Controllers
 
             try
             {
-                // Password plaintext langsung dibandingkan
                 string hashedPassword = req.Password;
 
                 using SqlConnection conn = new SqlConnection(_connectionString);
@@ -172,11 +153,6 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        // ════════════════════════════════════════════════════════════
-        // POST api/failure-auth/forgot-password   [Langkah 1]
-        // Body: { nim }
-        // Kembalikan: nama user + 3 pertanyaan keamanannya
-        // ════════════════════════════════════════════════════════════
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
         {
@@ -219,11 +195,6 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        // ════════════════════════════════════════════════════════════
-        // POST api/failure-auth/verify-reset   [Langkah 2]
-        // Body: { nim, a1Id, a1, a2Id, a2, a3Id, a3, newPassword, confirmPassword }
-        // Verifikasi jawaban + reset password sekaligus (tanpa OTP)
-        // ════════════════════════════════════════════════════════════
         [HttpPost("verify-reset")]
         public async Task<IActionResult> VerifyAndReset([FromBody] VerifyAndResetRequest req)
         {
@@ -240,7 +211,6 @@ namespace astratech_apps_backend.Controllers
 
             try
             {
-                // Jawaban di-lowercase untuk case-insensitive, password plaintext
                 string a1Hash = req.A1.Trim().ToLower();
                 string a2Hash = req.A2.Trim().ToLower();
                 string a3Hash = req.A3.Trim().ToLower();

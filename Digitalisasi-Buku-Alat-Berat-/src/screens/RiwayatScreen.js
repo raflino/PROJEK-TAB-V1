@@ -7,10 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { API_ENDPOINTS } from '../data/api';
 
@@ -36,7 +35,7 @@ const RiwayatScreen = ({ navigation }) => {
         setData([]);
       }
     } catch (error) {
-      console.log('History Error:', error);
+      console.warn('Failed to fetch history:', error);
       setData([]);
     } finally {
       setLoading(false);
@@ -56,7 +55,7 @@ const RiwayatScreen = ({ navigation }) => {
       .filter(item => item.trim() !== '');
 
     return items.map((item, index) => (
-      <View key={index} style={styles.problemRow}>
+      <View key={`problem-${index}-${item.substring(0, 10)}`} style={styles.problemRow}>
         <MaterialCommunityIcons
           name="circle-small"
           size={20}
@@ -253,17 +252,17 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   problemRow: {
-  flexDirection: 'row',
-  alignItems: 'flex-start',
-  marginTop: 2,
-},
-problemItem: {
-  flex: 1,
-  fontSize: 13,
-  color: '#666',
-  fontStyle: 'italic',
-  lineHeight: 18,
-},
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 2,
+  },
+  problemItem: {
+    flex: 1,
+    fontSize: 13,
+    color: '#666',
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
 });
 
 export default RiwayatScreen;

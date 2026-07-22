@@ -20,27 +20,22 @@ export default function ScanScreen({ navigation }) {
   const isFocused = useIsFocused();
   const isProcessing = useRef(false);
 
-  // 1. FILTER KODE ERROR (Diperbarui dengan Regex lebih kuat)
   const validateAndExtractCode = (rawText) => {
     if (!rawText) return null;
     
-    // Hapus spasi dan jadikan huruf kapital
     const cleanText = rawText.replace(/\s+/g, '').toUpperCase();
-    console.log("Clean text:", cleanText);
     
-    // Pattern disesuaikan dengan kode alat berat (Hitachi, Komatsu, CAT, dll)
     const patterns = [
-      /([A-Z]{2,4}\d{2,5})/,          // CA145, E10, E1023
-      /([A-Z0-9]{3,5}[-]\d{1,3})/,    // 1234-5, CA-15
-      /(\d{3,5}[A-Z]\d{2,4})/,        // 123A456
-      /([A-Z]{1,2}\d{1,3}[A-Z]{1,2})/,// E15A
-      /(CID\d{2,4}FMI\d{1,2})/        // Kode CAT standar
+      /([A-Z]{2,4}\d{2,5})/,
+      /([A-Z0-9]{3,5}[-]\d{1,3})/,
+      /(\d{3,5}[A-Z]\d{2,4})/,
+      /([A-Z]{1,2}\d{1,3}[A-Z]{1,2})/,
+      /(CID\d{2,4}FMI\d{1,2})/
     ];
 
     for (const pattern of patterns) {
       const match = cleanText.match(pattern);
       if (match && match[1]) {
-        console.log("Match found:", match[1]);
         return match[1];
       }
     }
@@ -48,7 +43,6 @@ export default function ScanScreen({ navigation }) {
     return cleanText.length > 2 ? cleanText.substring(0, 30) : null;
   };
 
-  // 2. FUNGSI OCR (Diperbarui dengan sistem Multi-Engine)
   const performOCR = async (base64Data, retryCount = 0) => {
     try {
       if (!base64Data || base64Data.length < 100) {
@@ -57,7 +51,6 @@ export default function ScanScreen({ navigation }) {
 
       const apiKey = "K84623724388957"; 
       
-      // Jika retryCount 0 gunakan OCREngine 2, jika retryCount 1 gunakan OCREngine 1
       const engineToUse = retryCount === 0 ? "2" : "1";
       
       const formData = new FormData();
@@ -68,9 +61,7 @@ export default function ScanScreen({ navigation }) {
       formData.append("detectOrientation", "true");
       formData.append("scale", "true");
       formData.append("isTable", "false");
-      formData.append("OCREngine", engineToUse); 
-
-      console.log(`Mengirim request OCR... (Percobaan ${retryCount + 1}, Engine: ${engineToUse})`);
+      formData.append("OCREngine", engineToUse);
 
       const response = await fetch("https://api.ocr.space/parse/image", {
         method: "POST",
@@ -92,11 +83,7 @@ export default function ScanScreen({ navigation }) {
             .trim();
         }
 
-        console.log(`Raw OCR Text (Engine ${engineToUse}):`, `"${fullText}"`);
-
-        // Jika tidak ada teks terdeteksi dan baru percobaan pertama, coba lagi dengan Engine berbeda
         if ((!fullText || fullText.length === 0) && retryCount === 0) {
-          console.log("Teks kosong, mencoba lagi dengan OCR Engine 1...");
           return await performOCR(base64Data, 1);
         }
 
@@ -148,13 +135,11 @@ export default function ScanScreen({ navigation }) {
         throw new Error(`OCR Error Code: ${result.OCRExitCode}`);
       }
     } catch (error) {
-      console.error("OCR Error:", error);
       Alert.alert("Error", "Gagal memproses gambar ke server. Pastikan internet stabil.");
       return { success: false };
     }
   };
 
-  // 3. SCAN VIA KAMERA (Diperbarui logika Crop dan Kompresi)
   const handleScan = useCallback(async () => {
     if (!cameraRef.current || loading || isProcessing.current) {
       return;
@@ -163,7 +148,6 @@ export default function ScanScreen({ navigation }) {
     try {
       isProcessing.current = true;
       setLoading(true);
-      console.log("Mengambil foto...");
       
       const photo = await cameraRef.current.takePictureAsync({ 
         quality: 1, 
@@ -173,7 +157,6 @@ export default function ScanScreen({ navigation }) {
 
       if (!photo || !photo.uri) throw new Error("Gagal mengambil foto");
 
-      // Ukuran kotak dari UI adalah 150 tinggi
       const cropAreaWidth = SCREEN_WIDTH * 0.85; 
       const cropAreaHeight = 150; 
       
@@ -183,7 +166,6 @@ export default function ScanScreen({ navigation }) {
       const cropWidth = cropAreaWidth * factorX;
       const cropHeight = cropAreaHeight * factorY;
       
-      // Hitung posisi tengah yang pas
       const originX = (photo.width - cropWidth) / 2;
       const originY = (photo.height - cropHeight) / 2;
 
@@ -192,9 +174,6 @@ export default function ScanScreen({ navigation }) {
       const safeCropWidth = Math.floor(Math.min(cropWidth, photo.width - safeOriginX));
       const safeCropHeight = Math.floor(Math.min(cropHeight, photo.height - safeOriginY));
 
-      console.log("Memotong area:", { safeOriginX, safeOriginY, safeCropWidth, safeCropHeight });
-
-      // Crop, Resize, dan set format ke JPEG agar base64 lebih ringan
       const manipulated = await ImageManipulator.manipulateAsync(
         photo.uri,
         [
@@ -213,7 +192,6 @@ export default function ScanScreen({ navigation }) {
       await performOCR(manipulated.base64);
 
     } catch (error) {
-      console.error("Scan Error:", error);
       Alert.alert("Error", `Gagal melakukan scan: ${error.message}`);
     } finally {
       setLoading(false);
@@ -221,7 +199,6 @@ export default function ScanScreen({ navigation }) {
     }
   }, [loading]);
 
-  // 4. SCAN VIA GALERI (Diperbarui dengan resizing yang sama agar API tidak timeout)
   const handlePickImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -236,7 +213,7 @@ export default function ScanScreen({ navigation }) {
         allowsEditing: true,
         aspect: [4, 2],
         quality: 1,
-        base64: false, // Ambil URI saja dulu agar bisa dikompres
+        base64: false,
       });
 
       if (!result.canceled && result.assets?.[0]) {
@@ -245,17 +222,15 @@ export default function ScanScreen({ navigation }) {
         
         const asset = result.assets[0];
         
-        // Kompres dan resize gambar galeri ke JPEG
         const manipulated = await ImageManipulator.manipulateAsync(
           asset.uri,
-          [{ resize: { width: 1000 } }], // Resize agar tidak terlalu besar
+          [{ resize: { width: 1000 } }],
           { base64: true, compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
         );  
         
         await performOCR(manipulated.base64);
       }
     } catch (error) {
-      console.error("Gallery Error:", error);
       Alert.alert("Error", "Gagal memilih gambar");
     } finally {
       setLoading(false);
@@ -264,8 +239,6 @@ export default function ScanScreen({ navigation }) {
   };
 
   const toggleFlash = () => setFlash(prev => !prev);
-
-  // --- UI RENDER ---
 
   if (!permission) {
     return (
@@ -298,7 +271,6 @@ export default function ScanScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <MaterialCommunityIcons name="chevron-left" size={35} color="white" />
@@ -310,7 +282,6 @@ export default function ScanScreen({ navigation }) {
         <View style={{ width: 35 }} />
       </View>
 
-      {/* CAMERA AREA */}
       <View style={styles.cameraArea}>
         {isFocused && (
           <>
@@ -355,7 +326,6 @@ export default function ScanScreen({ navigation }) {
         )}
       </View>
 
-      {/* BOTTOM PANEL */}
       <View style={styles.bottomPanel}>
         <Text style={styles.instruction}>
           Scan kode kerusakan pada panel monitor alat berat{'\n'}untuk mendapatkan analisis perbaikan
@@ -511,3 +481,6 @@ const styles = StyleSheet.create({
   sideBtn: { alignItems: 'center', width: 60 },
   sideText: { color: '#FFD700', fontSize: 10, marginTop: 5, fontWeight: 'bold' },
 });
+
+
+

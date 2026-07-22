@@ -5,40 +5,44 @@ import {
   Keyboard, Alert, Image, Modal, ScrollView, Dimensions
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-view';
 import BASE_URL, { API_ENDPOINTS } from '../data/api';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const KOMATSU_YELLOW = '#FFB800'; 
+const KOMATSU_YELLOW = '#FFB800';
 const DEEP_BLUE = '#001F3F';
+const getAuthHeaders = (token) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
 
 const AutoHeightImage = ({ uri, style }) => {
-  const [aspectRatio, setAspectRatio] = useState(16 / 9); 
+  const [aspectRatio, setAspectRatio] = useState(16 / 9);
   useEffect(() => {
     if (uri) {
       Image.getSize(uri, (width, height) => {
         if (width && height) setAspectRatio(width / height);
-      }, (error) => console.log('Failed to get image size:', error));
+      }, () => {});
     }
   }, [uri]);
   return <Image source={{ uri }} style={[style, { aspectRatio }]} resizeMode="contain" />;
 };
 
-// ==========================================
-// HELPER: Render text dengan pemisah "|" atau "."
-// ==========================================
-const renderMultiLineText = (text, textStyle, highlightStyle = null) => {
+const renderMultiLineText = (text, textStyle) => {
   if (!text || text === '-') return <Text style={textStyle}>-</Text>;
   
-  // Split by "|" first, then by "." if no "|" found
   let splitItems = [];
   if (text.includes('|')) {
     splitItems = text.split('|').map(i => i.trim()).filter(i => i !== "");
   } else if (text.includes('.')) {
-    // Split by "." but keep meaningful sentences (not decimals)
     splitItems = text.split(/\.\s+/).map(i => i.trim()).filter(i => i !== "");
-    // Add back the period
     splitItems = splitItems.map(item => item.endsWith('.') ? item : item + '.');
   } else {
     return <Text style={textStyle}>{text}</Text>;
@@ -60,27 +64,8 @@ const renderMultiLineText = (text, textStyle, highlightStyle = null) => {
   );
 };
 
-// ==========================================
-// COMPONENT: S-MODE GENERAL CAUSES CARD
-// ==========================================
 const SModeGeneralCauses = ({ generalCauses }) => {
   if (!generalCauses || generalCauses.length === 0) return null;
-
-  const renderCauses = () => {
-    return generalCauses.map((cause, idx) => {
-      const isNote = cause.kind === 'NOTE';
-      return (
-        <View key={idx} style={styles.generalCauseItem}>
-          <View style={styles.generalCauseNumber}>
-            <Text style={styles.generalCauseNumberText}>{isNote ? '📝' : idx + 1}</Text>
-          </View>
-          <View style={styles.generalCauseContent}>
-            <Text style={styles.generalCauseText}>{cause.causeText}</Text>
-          </View>
-        </View>
-      );
-    });
-  };
 
   return (
     <View style={styles.smodeGeneralCard}>
@@ -90,12 +75,23 @@ const SModeGeneralCauses = ({ generalCauses }) => {
       </View>
       <View style={styles.smodeGeneralDivider} />
       <View style={styles.smodeGeneralBody}>
-        {renderCauses()}
+        {generalCauses.map((cause, idx) => {
+          const isNote = cause.kind === 'NOTE';
+          return (
+            <View key={idx} style={styles.generalCauseItem}>
+              <View style={styles.generalCauseNumber}>
+                <Text style={styles.generalCauseNumberText}>{isNote ? '📝' : idx + 1}</Text>
+              </View>
+              <View style={styles.generalCauseContent}>
+                <Text style={styles.generalCauseText}>{cause.causeText}</Text>
+              </View>
+            </View>
+          );
+        })}
       </View>
     </View>
   );
 };
-
 
 const SModeResultCard = ({ conclusion, topAction }) => {
   if (!conclusion && !topAction) return null;
@@ -132,9 +128,7 @@ const SModeResultCard = ({ conclusion, topAction }) => {
           </View>
         )}
 
-        {conclusion && topAction && (
-          <View style={styles.smodeResultSectionDivider} />
-        )}
+        {conclusion && topAction && <View style={styles.smodeResultSectionDivider} />}
 
         {topAction && (
           <View style={styles.smodeResultSection}>
@@ -170,12 +164,6 @@ const SModeResultCard = ({ conclusion, topAction }) => {
   );
 };
 
-// ==========================================
-// COMPONENT: STEP CARD (TROUBLESHOOTING) - UPDATED
-// ==========================================
-// ==========================================
-// COMPONENT: STEP CARD (TROUBLESHOOTING) - UPDATED
-// ==========================================
 const StepCard = ({ data, index, isLastStep, onFinish, onNext }) => {
   const [showCircuit, setShowCircuit] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -186,11 +174,9 @@ const StepCard = ({ data, index, isLastStep, onFinish, onNext }) => {
     setModalVisible(true);
   };
 
-  // Helper untuk render teks dengan pemisah "•"
   const renderBulletText = (text, textStyle) => {
     if (!text || text === '-') return <Text style={textStyle}>-</Text>;
     
-    // Split by "•" symbol
     if (text.includes('•')) {
       const splitItems = text.split('•').map(i => i.trim()).filter(i => i !== "");
       if (splitItems.length === 0) return <Text style={textStyle}>-</Text>;
@@ -209,7 +195,6 @@ const StepCard = ({ data, index, isLastStep, onFinish, onNext }) => {
       );
     }
     
-    // Jika ada "|" juga split
     if (text.includes('|')) {
       const splitItems = text.split('|').map(i => i.trim()).filter(i => i !== "");
       if (splitItems.length <= 1) return <Text style={textStyle}>{text}</Text>;
@@ -228,7 +213,6 @@ const StepCard = ({ data, index, isLastStep, onFinish, onNext }) => {
       );
     }
     
-    // Jika ada ". " (titik spasi) split per kalimat
     if (text.includes('. ')) {
       const splitItems = text.split(/\.\s+/).map(i => i.trim()).filter(i => i !== "");
       if (splitItems.length <= 1) return <Text style={textStyle}>{text}</Text>;
@@ -247,7 +231,6 @@ const StepCard = ({ data, index, isLastStep, onFinish, onNext }) => {
       );
     }
     
-    // Teks biasa
     return <Text style={textStyle}>{text}</Text>;
   };
 
@@ -259,7 +242,6 @@ const StepCard = ({ data, index, isLastStep, onFinish, onNext }) => {
       </View>
       <Text style={styles.causeDesc}>{data.cause_description || data.cause_text || 'No description'}</Text>
       
-      {/* ===== CIRCUIT DIAGRAM (image_url) ===== */}
       {data.image_url && (
         <TouchableOpacity style={styles.btnCircuit} onPress={() => setShowCircuit(!showCircuit)}>
           <MaterialCommunityIcons name={showCircuit ? "eye-off-outline" : "image-search-outline"} size={18} color="#FFF" />
@@ -273,19 +255,16 @@ const StepCard = ({ data, index, isLastStep, onFinish, onNext }) => {
         </TouchableOpacity>
       )}
 
-      {/* ===== CHECK METHOD - DENGAN BULLET POINTS ===== */}
       <View style={styles.methodBox}>
         <Text style={styles.labelSmall}>CHECK METHOD:</Text>
         {renderBulletText(data.check_method || data.troubleshooting_step || '-', styles.methodText)}
       </View>
 
-      {/* ===== STANDARD CONDITION ===== */}
       <View style={styles.standardBox}>
         <Text style={styles.labelSmall}>STANDARD CONDITION:</Text>
         {data.standard_value && (
           <Text style={styles.standardValueText}>{data.standard_value}</Text>
         )}
-        {/* ===== STANDARD IMAGE (standard_image_url) ===== */}
         {data.standard_image_url && (
           <TouchableOpacity activeOpacity={0.9} style={styles.imageFrameStandard} onPress={() => handleOpenZoom(data.standard_image_url)}>
             <Text style={[styles.labelFrame, {color: '#166534'}]}>STANDARD REFERENCE (Tap to Zoom)</Text>
@@ -294,52 +273,53 @@ const StepCard = ({ data, index, isLastStep, onFinish, onNext }) => {
         )}
       </View>
 
-      {/* ===== REMEDY ===== */}
       {(data.remedy || data.remedy_text) && (
         <View style={styles.remedyBox}>
-            <Text style={[styles.labelSmall, {color: '#B45309'}]}>REMEDY / SOLUTION:</Text>
-            {renderBulletText(data.remedy || data.remedy_text, styles.methodText)}
+          <Text style={[styles.labelSmall, {color: '#B45309'}]}>REMEDY / SOLUTION:</Text>
+          {renderBulletText(data.remedy || data.remedy_text, styles.methodText)}
         </View>
       )}
 
       <View style={styles.stepActionRow}>
-        <TouchableOpacity style={styles.btnYa} onPress={onFinish}><Text style={styles.btnTextWhite}>Resolved</Text></TouchableOpacity>
-        {!isLastStep && <TouchableOpacity style={styles.btnTidak} onPress={onNext}><Text style={styles.btnTextBlack}>Still Error</Text></TouchableOpacity>}
+        <TouchableOpacity style={styles.btnYa} onPress={onFinish}>
+          <Text style={styles.btnTextWhite}>Resolved</Text>
+        </TouchableOpacity>
+        {!isLastStep && (
+          <TouchableOpacity style={styles.btnTidak} onPress={onNext}>
+            <Text style={styles.btnTextBlack}>Still Error</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* ===== MODAL ZOOM IMAGE ===== */}
-     <Modal visible={modalVisible} transparent={true} animationType="fade">
-  <View style={styles.modalContainer}>
-    <SafeAreaView style={styles.modalHeader}>
-      <TouchableOpacity onPress={() => setModalVisible(false)}>
-        <MaterialCommunityIcons name="close-circle" size={40} color={KOMATSU_YELLOW} />
-      </TouchableOpacity>
-    </SafeAreaView>
-    <View style={styles.tableZoomContainer}>
-      <ReactNativeZoomableView
-        maxZoom={4}
-        minZoom={1}
-        zoomStep={0.5}
-        initialZoom={1}
-        bindToBorders={true}
-        style={{ flex: 1 }}
-      >
-        <Image 
-          source={{ uri: selectedImg }} 
-          style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.8 }} 
-          resizeMode="contain" 
-        />
-      </ReactNativeZoomableView>
-    </View>
-  </View>
-</Modal>
+      <Modal visible={modalVisible} transparent={true} animationType="fade">
+        <View style={styles.modalContainer}>
+          <SafeAreaView style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <MaterialCommunityIcons name="close-circle" size={40} color={KOMATSU_YELLOW} />
+            </TouchableOpacity>
+          </SafeAreaView>
+          <View style={styles.tableZoomContainer}>
+            <ReactNativeZoomableView
+              maxZoom={4}
+              minZoom={1}
+              zoomStep={0.5}
+              initialZoom={1}
+              bindToBorders={true}
+              style={{ flex: 1 }}
+            >
+              <Image 
+                source={{ uri: selectedImg }} 
+                style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.8 }} 
+                resizeMode="contain" 
+              />
+            </ReactNativeZoomableView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
-}; 
+};
 
-// ==========================================
-// COMPONENT: S-MODE INPUT SELECTION
-// ==========================================
 const SModeInputSelection = ({ inputs, caseCode, onAnalyze, loading }) => {
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -356,11 +336,6 @@ const SModeInputSelection = ({ inputs, caseCode, onAnalyze, loading }) => {
       Alert.alert('Info', 'Please select at least one input.');
       return;
     }
-    
-    console.log('=== HANDLE ANALYZE ===');
-    console.log('caseCode:', caseCode);
-    console.log('selectedIds:', selectedIds);
-    console.log('selectedIds.join(","):', selectedIds.join(','));
     
     if (!caseCode) {
       Alert.alert('Error', 'Case Code is missing. Please try again.');
@@ -466,7 +441,6 @@ const SModeInputSelection = ({ inputs, caseCode, onAnalyze, loading }) => {
                 name={loading ? "loading" : "magnify"} 
                 size={18} 
                 color={KOMATSU_YELLOW} 
-                style={loading && {transform: [{rotate: '360deg'}]}}
               />
               <Text style={styles.smodeAnalyzeBtnText}>
                 {loading ? 'Analyzing...' : 'Analyze'}
@@ -479,22 +453,14 @@ const SModeInputSelection = ({ inputs, caseCode, onAnalyze, loading }) => {
   );
 };
 
-// ==========================================
-// COMPONENT: S-MODE RESULT
-// ==========================================
 const SModeResult = ({ result, imageFilename }) => {
   const [showTable, setShowTable] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   
   if (!result) return null;
 
-  const handleViewTable = () => {
-    setShowTable(!showTable);
-  };
-
-  const handleZoomTable = () => {
-    setModalVisible(true);
-  };
+  const handleViewTable = () => setShowTable(!showTable);
+  const handleZoomTable = () => setModalVisible(true);
 
   const getTopAction = () => {
     if (!result.final_actions || result.final_actions.length === 0) return null;
@@ -520,7 +486,7 @@ const SModeResult = ({ result, imageFilename }) => {
 
   return (
     <View style={styles.smodeResultContainer}>
-      <Text style={styles.smodeResultTitle}>📊 DIAGNOSTIC ANALYSIS RESULT</Text>
+      <Text style={styles.smodeResultTitle}>DIAGNOSTIC ANALYSIS RESULT</Text>
       
       {result.rankings && result.rankings.length > 0 && (
         <View style={styles.smodeRankings}>
@@ -542,35 +508,20 @@ const SModeResult = ({ result, imageFilename }) => {
       )}
 
       {(result.conclusion || topAction) && (
-        <SModeResultCard 
-          conclusion={result.conclusion} 
-          topAction={topAction} 
-        />
+        <SModeResultCard conclusion={result.conclusion} topAction={topAction} />
       )}
 
       {imageFilename && (
         <>
-          <TouchableOpacity 
-            style={styles.checkTableBtn} 
-            onPress={handleViewTable}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons 
-              name={showTable ? "table-eye-off" : "table-eye"} 
-              size={20} 
-              color="#FFF" 
-            />
+          <TouchableOpacity style={styles.checkTableBtn} onPress={handleViewTable} activeOpacity={0.8}>
+            <MaterialCommunityIcons name={showTable ? "table-eye-off" : "table-eye"} size={20} color="#FFF" />
             <Text style={styles.checkTableBtnText}>
               {showTable ? "HIDE REFERENCE TABLE" : "VIEW REFERENCE TABLE"}
             </Text>
           </TouchableOpacity>
           
           {showTable && (
-            <TouchableOpacity 
-              style={styles.tableImageContainer}
-              onPress={handleZoomTable}
-              activeOpacity={0.9}
-            >
+            <TouchableOpacity style={styles.tableImageContainer} onPress={handleZoomTable} activeOpacity={0.9}>
               <Text style={styles.tableImageLabel}>📋 REFERENCE TABLE (Tap to zoom)</Text>
               <Image 
                 source={{ uri: getSModelImageUrl(imageFilename) }}
@@ -582,12 +533,7 @@ const SModeResult = ({ result, imageFilename }) => {
         </>
       )}
 
-      <Modal 
-        visible={modalVisible} 
-        transparent={true} 
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
+     <Modal visible={modalVisible} transparent={true} animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalContainer}>
           <SafeAreaView style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -595,18 +541,20 @@ const SModeResult = ({ result, imageFilename }) => {
             </TouchableOpacity>
           </SafeAreaView>
           <View style={styles.tableZoomContainer}>
-            <ScrollView 
-              maximumZoomScale={4} 
-              minimumZoomScale={1} 
-              centerContent={true}
-              horizontal={false}
+            <ReactNativeZoomableView
+              maxZoom={5}
+              minZoom={1}
+              zoomStep={0.5}
+              initialZoom={1}
+              bindToBorders={true}
+              style={{ flex: 1 }}
             >
               <Image 
                 source={{ uri: getSModelImageUrl(imageFilename) }}
-                style={styles.tableZoomImage}
+                style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.8 }}
                 resizeMode="contain"
               />
-            </ScrollView>
+            </ReactNativeZoomableView>
           </View>
         </View>
       </Modal>
@@ -614,9 +562,101 @@ const SModeResult = ({ result, imageFilename }) => {
   );
 };
 
-// ==========================================
-// MAIN SCREEN
-// ==========================================
+const InfoCard = ({ data }) => {
+  const renderItems = (text) => {
+    if (!text || text === '-') return <Text style={styles.valueWhiteSmall}>-</Text>;
+    const splitItems = text.split('|').map(i => i.trim()).filter(i => i !== "");
+    if (splitItems.length === 0) return <Text style={styles.valueWhiteSmall}>-</Text>;
+    
+    return (
+      <View>
+        {splitItems.map((item, idx) => {
+          const isNote = item.startsWith('[NOTE]');
+          const cleanText = isNote ? item.replace('[NOTE]', '') : item;
+
+          return (
+            <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <View style={{ width: 14, marginTop: 2, alignItems: 'center', justifyContent: 'center' }}>
+                {isNote ? (
+                  <MaterialCommunityIcons name="star" size={12} color={'#CBD5E1'} />
+                ) : (
+                  <Text style={[styles.valueWhiteSmall, { fontWeight: 'bold' }]}>•</Text>
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.valueWhiteSmall}>{cleanText}</Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.infoCard}>
+      <View style={styles.cardHeaderRow}>
+        <MaterialCommunityIcons name="shield-check" size={16} color={KOMATSU_YELLOW} />
+        <Text style={styles.cardInfoTag}> DIAGNOSTIC RESULT</Text>
+      </View>
+      <Text style={styles.infoTitle}>
+        {data.code || data.case_code || 'N/A'} 
+        {data.user_code ? ` (${data.user_code})` : ''}
+      </Text>
+      <Text style={styles.infoDesc}>{data.description || data.title || 'No description'}</Text>
+      <View style={styles.divider} />
+      
+      <View style={styles.gridRow}>
+        <View style={styles.gridCol}>
+          <Text style={styles.labelSmall}>COMPONENT:</Text>
+          <Text style={styles.valueWhite}>{data.component_in_charge || '-'}</Text>
+        </View>
+        <View style={styles.gridCol}>
+          <Text style={styles.labelSmall}>CATEGORY:</Text>
+          <Text style={styles.valueWhite}>{data.category || data.mode || '-'}</Text>
+        </View>
+      </View>
+
+      {(data.problem_appears || data.trouble_description) && (
+        <View style={styles.dataSection}>
+          <Text style={styles.labelSmall}>PROBLEM:</Text>
+          {renderMultiLineText(data.problem_appears || data.trouble_description, styles.valueYellow)}
+        </View>
+      )}
+
+      {data.contents_of_trouble && (
+        <View style={styles.dataSection}>
+          <Text style={styles.labelSmall}>CONTENTS OF TROUBLE:</Text>
+          {renderMultiLineText(data.contents_of_trouble, styles.valueWhiteSmall)}
+        </View>
+      )}
+
+      {data.action_of_controller && (
+        <View style={styles.dataSection}>
+          <Text style={styles.labelSmall}>ACTION OF CONTROLLER:</Text>
+          {renderMultiLineText(data.action_of_controller, styles.valueWhiteSmall)}
+        </View>
+      )}
+
+      {data.related_information && (
+        <View style={styles.dataSection}>
+          <Text style={styles.labelSmall}>
+            {data.category === 'Mechanical (S)' ? 'GENERAL CAUSES:' : 'RELATED INFORMATION:'}
+          </Text>
+          {renderItems(data.related_information)}
+        </View>
+      )}
+
+      {data.causes && data.causes.length > 0 && (
+        <View style={styles.dataSection}>
+          <Text style={styles.labelSmall}>TROUBLESHOOTING STEPS:</Text>
+          <Text style={styles.valueWhiteSmall}>{data.causes.length} step(s) available</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
 const ChatScreen = ({ navigation, route }) => {
   const [searchText, setSearchText] = useState('');
   const [messages, setMessages] = useState([
@@ -627,6 +667,7 @@ const ChatScreen = ({ navigation, route }) => {
   const [selectedMode, setSelectedMode] = useState(null);
   const flatListRef = useRef();
   const [userNim, setUserNim] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
   const [sModeData, setSModeData] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -637,9 +678,10 @@ const ChatScreen = ({ navigation, route }) => {
         if (session) {
           const userData = JSON.parse(session);
           setUserNim(userData.nim);
+          setAuthToken(userData.token || null);
         }
       } catch (e) {
-        console.log('Gagal ambil session:', e);
+        console.log('Failed to get session:', e);
       }
     };
 
@@ -674,7 +716,7 @@ const ChatScreen = ({ navigation, route }) => {
       { id: 'user-mode-' + Date.now(), sender: 'user', text: `Mode: ${mode}`, type: 'text' },
       { id: 'ask-' + Date.now(), sender: 'bot', text: `Mode ${mode} selected. Please enter your search keyword:`, type: 'text' }
     ]);
-    if(autoKeyword) handleSearch(autoKeyword, mode);
+    if (autoKeyword) handleSearch(autoKeyword, mode);
   };
 
   const handleSearch = async (manualKeyword = null, forceMode = null) => {
@@ -684,22 +726,31 @@ const ChatScreen = ({ navigation, route }) => {
     if (!keyword.trim()) return;
 
     Keyboard.dismiss();
-    if (!manualKeyword) setMessages(prev => [...prev, { id: 'user-msg-' + Date.now(), text: keyword, sender: 'user', type: 'text' }]);
+    if (!manualKeyword) {
+      setMessages(prev => [...prev, { id: 'user-msg-' + Date.now(), text: keyword, sender: 'user', type: 'text' }]);
+    }
     setSearchText('');
     setLoading(true);
 
     try {
       const url = `${API_ENDPOINTS.search}?mode=${mode}&keyword=${encodeURIComponent(keyword)}`;
-      console.log('Search URL:', url);
       
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders(authToken)
+      });
+      
+      if (res.status === 401) {
+        Alert.alert('Session Expired', 'Please login again.', [
+          { text: 'OK', onPress: () => navigation.navigate('Login') }
+        ]);
+        setLoading(false);
+        return;
+      }
+      
       const data = await res.json();
       
-      console.log("=== SEARCH RESPONSE ===");
-      console.log("Status:", res.status);
-      console.log("Search JSON:", data);
-      
-      if (res.ok && data && data.length > 0) {
+      if (res.ok && data && Array.isArray(data) && data.length > 0) {
         if (data.length === 1) {
           const firstItem = data[0];
           const id = firstItem.id || firstItem.case_id || firstItem.caseId;
@@ -707,41 +758,34 @@ const ChatScreen = ({ navigation, route }) => {
             fetchDetail(id, mode, firstItem);
           } else {
             setMessages(prev => [...prev, { 
-              id: 'err-' + Date.now(), 
-              sender: 'bot', 
-              text: 'Error: ID not found in response.', 
-              type: 'text' 
+              id: 'err-' + Date.now(), sender: 'bot', text: 'Error: ID not found in response.', type: 'text' 
             }]);
           }
         } else {
           setMessages(prev => [...prev, { 
-            id: 'list-' + Date.now(), 
-            sender: 'bot', 
+            id: 'list-' + Date.now(), sender: 'bot', 
             text: `Found ${data.length} results, please choose one:`, 
-            type: 'result_list', 
-            data: data, 
-            mode: mode 
+            type: 'result_list', data: data, mode: mode 
           }]);
         }
       } else {
-        setMessages(prev => [...prev, { id: 'err-' + Date.now(), sender: 'bot', text: 'Records not found.', type: 'text' }]);
+        setMessages(prev => [...prev, { 
+          id: 'err-' + Date.now(), sender: 'bot', text: 'Records not found.', type: 'text' 
+        }]);
       }
     } catch (e) {
-      console.error('Search error:', e);
-      setMessages(prev => [...prev, { id: 'err-' + Date.now(), sender: 'bot', text: 'Server connection failed. Please try again.', type: 'text' }]);
-    } finally { setLoading(false); }
+      setMessages(prev => [...prev, { 
+        id: 'err-' + Date.now(), sender: 'bot', text: 'Server connection failed. Please try again.', type: 'text' 
+      }]);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const fetchDetail = async (id, mode, searchItemData = null) => {
-    console.log('Fetch detail - ID:', id, 'Mode:', mode);
-    console.log('Search item data:', searchItemData);
-    
     if (!id) {
       setMessages(prev => [...prev, { 
-        id: 'err-' + Date.now(), 
-        sender: 'bot', 
-        text: 'Error: Invalid ID.', 
-        type: 'text' 
+        id: 'err-' + Date.now(), sender: 'bot', text: 'Error: Invalid ID.', type: 'text' 
       }]);
       return;
     }
@@ -749,23 +793,29 @@ const ChatScreen = ({ navigation, route }) => {
     setLoading(true);
     try {
       const url = `${API_ENDPOINTS.detail}?mode=${mode}&id=${id}`;
-      console.log('Detail URL:', url);
       
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders(authToken)
+      });
+      
+      if (res.status === 401) {
+        Alert.alert('Session Expired', 'Please login again.', [
+          { text: 'OK', onPress: () => navigation.navigate('Login') }
+        ]);
+        setLoading(false);
+        return;
+      }
+      
       const json = await res.json();
-      
-      console.log('Detail response:', JSON.stringify(json, null, 2));
       
       if (res.ok) {
         if (json.caseInfo) {
-          console.log('Processing S-Mode response');
-          
           setActiveData(null);
           
           const imageFilename = searchItemData?.image_filename || 
                                json.caseInfo.image_filename || 
-                               json.caseInfo.imageFilename || 
-                               null;
+                               json.caseInfo.imageFilename || null;
           
           const sData = {
             caseInfo: {
@@ -783,9 +833,7 @@ const ChatScreen = ({ navigation, route }) => {
             
             setMessages(prev => [...prev, 
               { 
-                id: 's-causes-' + Date.now(), 
-                sender: 'bot', 
-                type: 'info_card',
+                id: 's-causes-' + Date.now(), sender: 'bot', type: 'info_card',
                 data: {
                   code: sData.caseInfo?.caseCode || 'S-MODE',
                   title: sData.caseInfo?.title || 'Mechanical Diagnosis',
@@ -798,9 +846,7 @@ const ChatScreen = ({ navigation, route }) => {
                 }
               },
               { 
-                id: 's-inputs-' + Date.now(), 
-                sender: 'bot', 
-                type: 's_mode_inputs',
+                id: 's-inputs-' + Date.now(), sender: 'bot', type: 's_mode_inputs',
                 data: {
                   caseInputs: sData.caseInputs || [],
                   caseCode: caseCode || ''
@@ -812,7 +858,6 @@ const ChatScreen = ({ navigation, route }) => {
           saveToHistory('S', null, json.caseInfo.caseId, json.caseInfo.title);
         }
         else if (json.header && json.causes !== undefined) {
-          console.log('Processing CODE/E/H response');
           const finalData = { 
             ...json.header, 
             causes: json.causes || [] 
@@ -828,65 +873,45 @@ const ChatScreen = ({ navigation, route }) => {
           );
 
           setMessages(prev => [...prev, { 
-            id: 'info-' + Date.now(), 
-            sender: 'bot', 
-            type: 'info_card', 
-            data: finalData 
+            id: 'info-' + Date.now(), sender: 'bot', type: 'info_card', data: finalData 
           }]);
           
           setTimeout(() => {
             if (finalData.causes && finalData.causes.length > 0) {
               setMessages(prev => [...prev, { 
-                id: 'confirm-' + Date.now(), 
-                sender: 'bot', 
-                type: 'confirm_ask', 
+                id: 'confirm-' + Date.now(), sender: 'bot', type: 'confirm_ask', 
                 text: `Found ${finalData.causes.length} troubleshooting step(s). View details?` 
               }]);
             }
           }, 600);
         }
       } else {
-        const errorMsg = json.errors ? 
-          Object.values(json.errors).flat().join('\n') : 
-          json.message || 'Failed to fetch detail.';
-          
+        const errorMsg = json.message || 'Failed to fetch detail.';
         setMessages(prev => [...prev, { 
-          id: 'err-' + Date.now(), 
-          sender: 'bot', 
-          text: `Error: ${errorMsg}`, 
-          type: 'text' 
+          id: 'err-' + Date.now(), sender: 'bot', text: `Error: ${errorMsg}`, type: 'text' 
         }]);
       }
-    } catch (e) { 
-      console.error('Detail error:', e); 
+    } catch (e) {
       setMessages(prev => [...prev, { 
-        id: 'err-' + Date.now(), 
-        sender: 'bot', 
-        text: 'Failed to load detail. Please check your connection.', 
-        type: 'text' 
+        id: 'err-' + Date.now(), sender: 'bot', 
+        text: 'Failed to load detail. Please check your connection.', type: 'text' 
       }]);
-    } finally { setLoading(false); }
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const analyzeSMode = async (caseCode, selectedRowIds) => {
-    console.log('=== ANALYZE S-MODE ===');
-    
     if (!caseCode) {
       setMessages(prev => [...prev, { 
-        id: 'err-' + Date.now(), 
-        sender: 'bot', 
-        text: 'Error: Case Code is missing. Please try searching again.', 
-        type: 'text' 
+        id: 'err-' + Date.now(), sender: 'bot', text: 'Error: Case Code is missing.', type: 'text' 
       }]);
       return;
     }
     
     if (!selectedRowIds || selectedRowIds.length === 0) {
       setMessages(prev => [...prev, { 
-        id: 'err-' + Date.now(), 
-        sender: 'bot', 
-        text: 'Error: Please select at least one input.', 
-        type: 'text' 
+        id: 'err-' + Date.now(), sender: 'bot', text: 'Error: Please select at least one input.', type: 'text' 
       }]);
       return;
     }
@@ -897,46 +922,42 @@ const ChatScreen = ({ navigation, route }) => {
     try {
       const payload = {
         caseCode: caseCode,
-        selectedRowIds: selectedRowIds
+        selectedRowIds: selectedRowIds,
+        machineModel: null,
+        serialNumber: null,
+        technicianName: userNim || null
       };
       
       const res = await fetch(API_ENDPOINTS.analyzeSMode, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
+        headers: getAuthHeaders(authToken),
         body: JSON.stringify(payload)
       });
+      
+      if (res.status === 401) {
+        Alert.alert('Session Expired', 'Please login again.', [
+          { text: 'OK', onPress: () => navigation.navigate('Login') }
+        ]);
+        setIsAnalyzing(false);
+        setLoading(false);
+        return;
+      }
       
       const result = await res.json();
       
       if (res.ok) {
         setMessages(prev => [...prev, { 
-          id: 's-result-' + Date.now(), 
-          sender: 'bot', 
-          type: 's_mode_result',
-          data: result
+          id: 's-result-' + Date.now(), sender: 'bot', type: 's_mode_result', data: result 
         }]);
       } else {
-        const errorMsg = result.errors ? 
-          Object.values(result.errors).flat().join('\n') : 
-          result.message || 'Unknown error';
-          
+        const errorMsg = result.message || 'Unknown error';
         setMessages(prev => [...prev, { 
-          id: 'err-' + Date.now(), 
-          sender: 'bot', 
-          text: `Analysis failed: ${errorMsg}`, 
-          type: 'text' 
+          id: 'err-' + Date.now(), sender: 'bot', text: `Analysis failed: ${errorMsg}`, type: 'text' 
         }]);
       }
     } catch (e) {
-      console.error('Analysis error:', e);
       setMessages(prev => [...prev, { 
-        id: 'err-' + Date.now(), 
-        sender: 'bot', 
-        text: 'Failed to analyze. Please check your connection.', 
-        type: 'text' 
+        id: 'err-' + Date.now(), sender: 'bot', text: 'Failed to analyze. Please check your connection.', type: 'text' 
       }]);
     } finally {
       setIsAnalyzing(false);
@@ -958,110 +979,12 @@ const ChatScreen = ({ navigation, route }) => {
 
       await fetch(API_ENDPOINTS.saveHistory, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(authToken),
         body: JSON.stringify(payload)
       });
-
     } catch (error) {
-      console.log('HISTORY ERROR:', error);
+      console.log('Failed to save history:', error);
     }
-  };
-const InfoCard = ({ data }) => {
-    const renderItems = (text) => {
-      if (!text || text === '-') return <Text style={styles.valueWhiteSmall}>-</Text>;
-      const splitItems = text.split('|').map(i => i.trim()).filter(i => i !== "");
-      if (splitItems.length === 0) return <Text style={styles.valueWhiteSmall}>-</Text>;
-      
-      return (
-        <View>
-          {splitItems.map((item, idx) => {
-            const isNote = item.startsWith('[NOTE]');
-            const cleanText = isNote ? item.replace('[NOTE]', '') : item;
-
-            return (
-              <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                <View style={{ width: 14, marginTop: 2, alignItems: 'center', justifyContent: 'center' }}>
-                  {isNote ? (
-                    <MaterialCommunityIcons name="star" size={12} color={'#CBD5E1'} />
-                  ) : (
-                    <Text style={[styles.valueWhiteSmall, { fontWeight: 'bold' }]}>•</Text>
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.valueWhiteSmall}>{cleanText}</Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      );
-    };
-
-    return (
-      <View style={styles.infoCard}>
-        <View style={styles.cardHeaderRow}>
-          <MaterialCommunityIcons name="shield-check" size={16} color={KOMATSU_YELLOW} />
-          <Text style={styles.cardInfoTag}> DIAGNOSTIC RESULT</Text>
-        </View>
-        <Text style={styles.infoTitle}>
-          {data.code || data.case_code || 'N/A'} 
-          {data.user_code ? ` (${data.user_code})` : ''}
-        </Text>
-        <Text style={styles.infoDesc}>{data.description || data.title || 'No description'}</Text>
-        <View style={styles.divider} />
-        
-        <View style={styles.gridRow}>
-          <View style={styles.gridCol}>
-            <Text style={styles.labelSmall}>COMPONENT:</Text>
-            <Text style={styles.valueWhite}>{data.component_in_charge || '-'}</Text>
-          </View>
-          <View style={styles.gridCol}>
-            <Text style={styles.labelSmall}>CATEGORY:</Text>
-            <Text style={styles.valueWhite}>{data.category || data.mode || '-'}</Text>
-          </View>
-        </View>
-
-        {/* ===== PROBLEM - DENGAN MULTI-LINE ===== */}
-        {(data.problem_appears || data.trouble_description) && (
-          <View style={styles.dataSection}>
-            <Text style={styles.labelSmall}>PROBLEM:</Text>
-            {renderMultiLineText(data.problem_appears || data.trouble_description, styles.valueYellow)}
-          </View>
-        )}
-
-        {/* ===== CONTENTS OF TROUBLE - DENGAN MULTI-LINE ===== */}
-        {data.contents_of_trouble && (
-          <View style={styles.dataSection}>
-            <Text style={styles.labelSmall}>CONTENTS OF TROUBLE:</Text>
-            {renderMultiLineText(data.contents_of_trouble, styles.valueWhiteSmall)}
-          </View>
-        )}
-
-        {/* ===== ACTION OF CONTROLLER - DENGAN MULTI-LINE ===== */}
-        {data.action_of_controller && (
-          <View style={styles.dataSection}>
-            <Text style={styles.labelSmall}>ACTION OF CONTROLLER:</Text>
-            {renderMultiLineText(data.action_of_controller, styles.valueWhiteSmall)}
-          </View>
-        )}
-
-        {data.related_information && (
-          <View style={styles.dataSection}>
-            <Text style={styles.labelSmall}>
-              {data.category === 'Mechanical (S)' ? 'GENERAL CAUSES:' : 'RELATED INFORMATION:'}
-            </Text>
-            {renderItems(data.related_information)}
-          </View>
-        )}
-
-        {data.causes && data.causes.length > 0 && (
-          <View style={styles.dataSection}>
-            <Text style={styles.labelSmall}>TROUBLESHOOTING STEPS:</Text>
-            <Text style={styles.valueWhiteSmall}>{data.causes.length} step(s) available</Text>
-          </View>
-        )}
-      </View>
-    );
   };
 
   const renderMessage = ({ item }) => {
@@ -1122,7 +1045,9 @@ const InfoCard = ({ data }) => {
                       <Text style={styles.resultTitle}>{res.code || res.case_code || 'N/A'}</Text>
                     </View>
                     <View style={styles.resultInfoBox}>
-                      <Text style={styles.resultSub} numberOfLines={2}>{res.trouble_description || res.description || res.title || 'No description'}</Text>
+                      <Text style={styles.resultSub} numberOfLines={2}>
+                        {res.trouble_description || res.description || res.title || 'No description'}
+                      </Text>
                     </View>
                     <MaterialCommunityIcons name="chevron-right" size={20} color={DEEP_BLUE} />
                   </View>
@@ -1130,8 +1055,6 @@ const InfoCard = ({ data }) => {
               );
             })}
           </View>
-        ) : item.type === 's_mode_general_causes' ? (
-          <SModeGeneralCauses generalCauses={item.data.generalCauses} />
         ) : item.type === 's_mode_inputs' ? (
           <SModeInputSelection 
             inputs={item.data.caseInputs || []}
@@ -1153,11 +1076,8 @@ const InfoCard = ({ data }) => {
               <TouchableOpacity style={styles.btnConfirm} onPress={() => {
                 if (activeData?.causes?.length > 0) {
                   setMessages(prev => [...prev, { 
-                    id: 'step-0-' + Date.now(), 
-                    sender: 'bot', 
-                    type: 'step_card', 
-                    data: activeData.causes[0], 
-                    currentIndex: 0 
+                    id: 'step-0-' + Date.now(), sender: 'bot', type: 'step_card', 
+                    data: activeData.causes[0], currentIndex: 0 
                   }]);
                 } else {
                   Alert.alert("Info", "Troubleshooting steps not available.");
@@ -1176,11 +1096,8 @@ const InfoCard = ({ data }) => {
               const nextIdx = item.currentIndex + 1;
               if (activeData?.causes && nextIdx < activeData.causes.length) {
                 setMessages(prev => [...prev, { 
-                  id: `step-${nextIdx}-${Date.now()}`, 
-                  sender: 'bot', 
-                  type: 'step_card', 
-                  data: activeData.causes[nextIdx], 
-                  currentIndex: nextIdx 
+                  id: `step-${nextIdx}-${Date.now()}`, sender: 'bot', type: 'step_card', 
+                  data: activeData.causes[nextIdx], currentIndex: nextIdx 
                 }]);
               }
             }}
@@ -1241,7 +1158,7 @@ const InfoCard = ({ data }) => {
         <View style={styles.inputArea}>
           <TextInput 
             style={styles.textInput} 
-            placeholder={selectedMode ? `Type keyword...` : "Select mode above"} 
+            placeholder={selectedMode ? "Type keyword..." : "Select mode above"} 
             value={searchText} 
             onChangeText={setSearchText} 
             onSubmitEditing={() => handleSearch()} 
@@ -1260,73 +1177,13 @@ const InfoCard = ({ data }) => {
   );
 };
 
-// ==========================================
-// STYLES
-// ==========================================
 const styles = StyleSheet.create({
-  checkTableBtn: {
-    backgroundColor: '#1E40AF',
-    padding: 14,
-    borderRadius: 12,
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: '#2563EB',
-    gap: 8,
-  },
-  checkTableBtnText: {
-    color: '#FFF',
-    fontWeight: '700',
-    fontSize: 14,
-    letterSpacing: 0.5,
-  },
-  tableImageContainer: {
-    marginTop: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 0,
-  },
-  tableImageLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: 8,
-    fontWeight: '700',
-  },
-  tableImage: {
-    width: '100%',
-    height: 250,
-    borderRadius: 8,
-  },
-  tableZoomContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tableZoomImage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.8,
-  },
   container: { flex: 1, backgroundColor: '#F4F7F9' },
   header: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    paddingHorizontal: 15, 
-    paddingTop: Platform.OS === 'android' ? 10 : 0,
-    height: 75,
-    backgroundColor: DEEP_BLUE, 
-    borderBottomRightRadius: 25, 
-    borderBottomLeftRadius: 25,
-    elevation: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
+    paddingHorizontal: 15, paddingTop: Platform.OS === 'android' ? 10 : 0,
+    height: 75, backgroundColor: DEEP_BLUE, 
+    borderBottomRightRadius: 25, borderBottomLeftRadius: 25, elevation: 8,
   },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   headerTitleContainer: { alignItems: 'center' },
@@ -1417,377 +1274,73 @@ const styles = StyleSheet.create({
   modalContainer: { flex: 1, backgroundColor: '#000' },
   modalHeader: { padding: 20, alignItems: 'flex-end' },
 
-  // S-Mode General Causes Card Styles
-  smodeGeneralCard: {
-    backgroundColor: '#001529',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,184,0,0.2)',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    width: SCREEN_WIDTH * 0.92,
-    alignSelf: 'center',
-  },
-  smodeGeneralHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  smodeGeneralTitle: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  smodeGeneralDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginBottom: 12,
-  },
-  smodeGeneralBody: {
-    gap: 8,
-  },
-  generalCauseItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    paddingVertical: 4,
-  },
-  generalCauseNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,184,0,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-    marginTop: 2,
-  },
-  generalCauseNumberText: {
-    color: KOMATSU_YELLOW,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  generalCauseContent: {
-    flex: 1,
-  },
-  generalCauseText: {
-    color: '#CBD5E1',
-    fontSize: 13,
-    lineHeight: 20,
-  },
+  smodeGeneralCard: { backgroundColor: '#001529', padding: 16, borderRadius: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,184,0,0.2)', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, width: SCREEN_WIDTH * 0.92, alignSelf: 'center' },
+  smodeGeneralHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+  smodeGeneralTitle: { color: '#FFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
+  smodeGeneralDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 12 },
+  smodeGeneralBody: { gap: 8 },
+  generalCauseItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 4 },
+  generalCauseNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,184,0,0.15)', justifyContent: 'center', alignItems: 'center', flexShrink: 0, marginTop: 2 },
+  generalCauseNumberText: { color: KOMATSU_YELLOW, fontSize: 12, fontWeight: '700' },
+  generalCauseContent: { flex: 1 },
+  generalCauseText: { color: '#CBD5E1', fontSize: 13, lineHeight: 20 },
 
-  // S-Mode Result Card Styles (Conclusion & Final Action)
-  smodeResultCard: {
-    backgroundColor: '#001529',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,184,0,0.2)',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    width: SCREEN_WIDTH * 0.92,
-    alignSelf: 'center',
-  },
-  smodeResultCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  smodeResultCardTitle: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  smodeResultCardDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginBottom: 12,
-  },
-  smodeResultCardBody: {
-    gap: 4,
-  },
-  smodeResultSection: {
-    marginBottom: 4,
-  },
-  smodeResultSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  smodeResultSectionTitle: {
-    color: KOMATSU_YELLOW,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  smodeResultItem: {
-    marginBottom: 4,
-    paddingLeft: 4,
-  },
-  smodeResultLabel: {
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 1,
-  },
-  smodeResultValue: {
-    color: '#CBD5E1',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  smodeResultNote: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  smodeResultSectionDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    marginVertical: 8,
-  },
+  smodeResultCard: { backgroundColor: '#001529', padding: 16, borderRadius: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,184,0,0.2)', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, width: SCREEN_WIDTH * 0.92, alignSelf: 'center' },
+  smodeResultCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+  smodeResultCardTitle: { color: '#FFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
+  smodeResultCardDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 12 },
+  smodeResultCardBody: { gap: 4 },
+  smodeResultSection: { marginBottom: 4 },
+  smodeResultSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  smodeResultSectionTitle: { color: KOMATSU_YELLOW, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  smodeResultItem: { marginBottom: 4, paddingLeft: 4 },
+  smodeResultLabel: { color: '#94A3B8', fontSize: 11, fontWeight: '600', marginBottom: 1 },
+  smodeResultValue: { color: '#CBD5E1', fontSize: 13, lineHeight: 18 },
+  smodeResultSectionDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginVertical: 8 },
 
-  // S-Mode Input Styles
-  smodeInputWrapper: {
-    width: SCREEN_WIDTH * 0.92,
-    alignSelf: 'center',
-    maxHeight: 400,
-    borderRadius: 20,
-    backgroundColor: '#FFF',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    overflow: 'hidden',
-  },
-  smodeInputScroll: {
-    maxHeight: 400,
-  },
-  smodeInputContainer: {
-    padding: 16,
-    paddingBottom: 8,
-  },
-  smodeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    gap: 8,
-  },
-  smodeSectionTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: DEEP_BLUE,
-    letterSpacing: 0.5,
-  },
-  smodeSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginBottom: 12,
-    marginLeft: 2,
-  },
-  smodeGroup: {
-    marginBottom: 12,
-  },
-  smodeGroupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-    gap: 6,
-  },
-  smodeGroupTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: DEEP_BLUE,
-  },
-  smodeCountBadge: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 8,
-    paddingVertical: 1,
-    borderRadius: 10,
-    marginLeft: 4,
-  },
-  smodeCountText: {
-    fontSize: 10,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  smodeInputItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    minHeight: 44,
-  },
-  smodeInputItemSelected: {
-    backgroundColor: '#EFF6FF',
-    borderColor: DEEP_BLUE,
-    borderWidth: 1.5,
-  },
-  smodeCheckbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#CBD5E1',
-    marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    flexShrink: 0,
-  },
-  smodeCheckboxSelected: {
-    backgroundColor: DEEP_BLUE,
-    borderColor: DEEP_BLUE,
-  },
-  smodeInputText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#334155',
-    lineHeight: 16,
-  },
-  smodeActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  smodeSelectedInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  smodeSelectedCount: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  smodeSelectedCountBold: {
-    fontWeight: 'bold',
-  },
-  smodeAnalyzeBtn: {
-    backgroundColor: DEEP_BLUE,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  smodeAnalyzeBtnDisabled: {
-    backgroundColor: '#94A3B8',
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  smodeAnalyzeBtnText: {
-    color: KOMATSU_YELLOW,
-    fontWeight: '700',
-    fontSize: 13,
-    letterSpacing: 0.3,
-  },
+  smodeInputWrapper: { width: SCREEN_WIDTH * 0.92, alignSelf: 'center', maxHeight: 400, borderRadius: 20, backgroundColor: '#FFF', elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden' },
+  smodeInputScroll: { maxHeight: 400 },
+  smodeInputContainer: { padding: 16, paddingBottom: 8 },
+  smodeHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 4, gap: 8 },
+  smodeSectionTitle: { fontSize: 16, fontWeight: '900', color: DEEP_BLUE, letterSpacing: 0.5 },
+  smodeSubtitle: { fontSize: 12, color: '#64748B', marginBottom: 12, marginLeft: 2 },
+  smodeGroup: { marginBottom: 12 },
+  smodeGroupHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 6 },
+  smodeGroupTitle: { fontSize: 13, fontWeight: '700', color: DEEP_BLUE },
+  smodeCountBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 1, borderRadius: 10, marginLeft: 4 },
+  smodeCountText: { fontSize: 10, color: '#64748B', fontWeight: '600' },
+  smodeInputItem: { flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: '#F8FAFC', borderRadius: 10, marginBottom: 4, borderWidth: 1, borderColor: '#E2E8F0', minHeight: 44 },
+  smodeInputItemSelected: { backgroundColor: '#EFF6FF', borderColor: DEEP_BLUE, borderWidth: 1.5 },
+  smodeCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#CBD5E1', marginRight: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF', flexShrink: 0 },
+  smodeCheckboxSelected: { backgroundColor: DEEP_BLUE, borderColor: DEEP_BLUE },
+  smodeInputText: { flex: 1, fontSize: 12, color: '#334155', lineHeight: 16 },
+  smodeActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  smodeSelectedInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  smodeSelectedCount: { fontSize: 12, color: '#64748B' },
+  smodeSelectedCountBold: { fontWeight: 'bold' },
+  smodeAnalyzeBtn: { backgroundColor: DEEP_BLUE, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+  smodeAnalyzeBtnDisabled: { backgroundColor: '#94A3B8', elevation: 0, shadowOpacity: 0 },
+  smodeAnalyzeBtnText: { color: KOMATSU_YELLOW, fontWeight: '700', fontSize: 13, letterSpacing: 0.3 },
 
-  // S-Mode Result Styles
-  smodeResultContainer: {
-    backgroundColor: '#FFF',
-    padding: 20,
-    borderRadius: 25,
-    width: SCREEN_WIDTH * 0.92,
-    alignSelf: 'center',
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  smodeResultTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: DEEP_BLUE,
-    marginBottom: 16,
-  },
-  smodeRankings: {
-    marginBottom: 16,
-  },
-  smodeRankingsTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 8,
-  },
-  smodeRankItem: {
-    flexDirection: 'row',
-    backgroundColor: '#F8FAFC',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  smodeRankBadge: {
-    backgroundColor: DEEP_BLUE,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginRight: 10,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-  smodeRankNumber: {
-    color: KOMATSU_YELLOW,
-    fontWeight: '700',
-    fontSize: 11,
-  },
-  smodeRankContent: {
-    flex: 1,
-  },
-  smodeRankCause: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  smodeRankDetail: {
-    flexDirection: 'row',
-    marginTop: 2,
-  },
-  smodeRankScore: {
-    fontSize: 11,
-    color: '#64748B',
-    marginRight: 12,
-  },
-  smodeRankSymbols: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  smodeRankRemedy: {
-    fontSize: 12,
-    color: '#B45309',
-    marginTop: 4,
-  },
+  smodeResultContainer: { backgroundColor: '#FFF', padding: 20, borderRadius: 25, width: SCREEN_WIDTH * 0.92, alignSelf: 'center', elevation: 5, borderWidth: 1, borderColor: '#F1F5F9' },
+  smodeResultTitle: { fontSize: 16, fontWeight: '900', color: DEEP_BLUE, marginBottom: 16 },
+  smodeRankings: { marginBottom: 16 },
+  smodeRankingsTitle: { fontSize: 14, fontWeight: '700', color: '#64748B', marginBottom: 8 },
+  smodeRankItem: { flexDirection: 'row', backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 6, borderWidth: 1, borderColor: '#E2E8F0' },
+  smodeRankBadge: { backgroundColor: DEEP_BLUE, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginRight: 10, justifyContent: 'center', alignSelf: 'flex-start' },
+  smodeRankNumber: { color: KOMATSU_YELLOW, fontWeight: '700', fontSize: 11 },
+  smodeRankContent: { flex: 1 },
+  smodeRankCause: { fontSize: 13, fontWeight: '600', color: '#1E293B' },
+  smodeRankDetail: { flexDirection: 'row', marginTop: 2 },
+  smodeRankSymbols: { fontSize: 11, color: '#64748B' },
+
+  checkTableBtn: { backgroundColor: '#1E40AF', padding: 14, borderRadius: 12, marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, borderWidth: 1, borderColor: '#2563EB', gap: 8 },
+  checkTableBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14, letterSpacing: 0.5 },
+  tableImageContainer: { marginTop: 12, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 0 },
+  tableImageLabel: { fontSize: 11, color: '#64748B', textAlign: 'center', marginBottom: 8, fontWeight: '700' },
+  tableImage: { width: '100%', height: 250, borderRadius: 8 },
+  tableZoomContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  tableZoomImage: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.8 },
 });
 
 export default ChatScreen;

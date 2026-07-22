@@ -12,12 +12,21 @@ const GOLD  = '#FFD700';
 const RED   = '#E53935';
 const GREEN = '#2E7D32';
 
-// ─── Password rules ────────────────────────────────────────────────
 const passwordRules = [
   { key: 'length', label: 'At least 8 characters',       test: p => p.length >= 8 },
   { key: 'upper',  label: 'Contains an uppercase letter', test: p => /[A-Z]/.test(p) },
-  { key: 'number', label: 'Contains a number',            test: p => /[0-9]/.test(p) },
+  { key: 'number', label: 'Contains a number',            test: p => /\d/.test(p) },
 ];
+
+const getCheckIconColor = (passed, passwordLength) => {
+  if (passed) return GREEN;
+  return passwordLength > 0 ? RED : '#CCC';
+};
+
+const getCheckTextColor = (passed, passwordLength) => {
+  if (passed) return GREEN;
+  return passwordLength > 0 ? RED : '#AAA';
+};
 
 const PasswordChecklist = ({ password }) => (
   <View style={styles.checklist}>
@@ -28,9 +37,9 @@ const PasswordChecklist = ({ password }) => (
           <MaterialCommunityIcons
             name={passed ? 'check-circle' : 'close-circle'}
             size={16}
-            color={passed ? GREEN : (password.length > 0 ? RED : '#CCC')}
+            color={getCheckIconColor(passed, password.length)}
           />
-          <Text style={[styles.checkText, { color: passed ? GREEN : (password.length > 0 ? RED : '#AAA') }]}>
+          <Text style={[styles.checkText, { color: getCheckTextColor(passed, password.length) }]}>
             {rule.label}
           </Text>
         </View>
@@ -39,7 +48,6 @@ const PasswordChecklist = ({ password }) => (
   </View>
 );
 
-// ─── Step Indicator ────────────────────────────────────────────────
 const STEP_LABELS = ['Find Account', 'Security Questions', 'New Password'];
 
 const StepIndicator = ({ current }) => (
@@ -63,7 +71,6 @@ const StepIndicator = ({ current }) => (
   </View>
 );
 
-// ─── User Card (reusable) ─────────────────────────────────────────
 const UserCard = ({ nama, nim, verified = false }) => (
   <View style={styles.userCard}>
     <View style={styles.userAvatar}>
@@ -88,18 +95,13 @@ const UserCard = ({ nama, nim, verified = false }) => (
   </View>
 );
 
-// ═════════════════════════════════════════════════════════════════
-// SCREEN UTAMA
-// ═════════════════════════════════════════════════════════════════
 const ForgotPasswordScreen = ({ navigation }) => {
   const [step, setStep]       = useState(1);
   const [loading, setLoading] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  // Step 1
   const [nim, setNim] = useState('');
 
-  // Data dari API
   const [namaUser, setNamaUser]   = useState('');
   const [questions, setQuestions] = useState({
     q1: { id: 0, text: '' },
@@ -107,12 +109,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
     q3: { id: 0, text: '' },
   });
 
-  // Step 2 — jawaban security questions
   const [a1, setA1] = useState('');
   const [a2, setA2] = useState('');
   const [a3, setA3] = useState('');
 
-  // Step 3 — password baru
   const [newPass, setNewPass]         = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [showNew, setShowNew]         = useState(false);
@@ -120,7 +120,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
   const passwordValid = passwordRules.every(r => r.test(newPass));
 
-  // ── Animasi transisi ───────────────────────────────────────────
   const goToStep = next => {
     Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
@@ -134,9 +133,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
     else goToStep(step - 1);
   };
 
-  // ════════════════════════════════════════════════════════════════
-  // STEP 1: Cari akun by NIM
-  // ════════════════════════════════════════════════════════════════
   const handleFindAccount = async () => {
     if (!nim.trim()) { Alert.alert('Warning', 'Student ID / Lecturer ID is required!'); return; }
     setLoading(true);
@@ -166,21 +162,14 @@ const ForgotPasswordScreen = ({ navigation }) => {
     }
   };
 
-  // ════════════════════════════════════════════════════════════════
-  // STEP 2: Verifikasi jawaban security questions
-  // ════════════════════════════════════════════════════════════════
   const handleVerifyAnswers = () => {
     if (!a1.trim() || !a2.trim() || !a3.trim()) {
       Alert.alert('Warning', 'All security answers are required.');
       return;
     }
-    // Lanjut ke step 3 — verifikasi jawaban dilakukan saat submit akhir
     goToStep(3);
   };
 
-  // ════════════════════════════════════════════════════════════════
-  // STEP 3: Submit reset password
-  // ════════════════════════════════════════════════════════════════
   const handleResetPassword = async () => {
     if (!passwordValid) {
       Alert.alert('Warning', 'Password does not meet all requirements.');
@@ -213,7 +202,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
           [{ text: 'Sign In Now', onPress: () => navigation.replace('Login') }]
         );
       } else {
-        // Kalau jawaban salah, balik ke step 2
         Alert.alert(
           'Verification Failed',
           result.message || 'Incorrect answers. Please go back and try again.',
@@ -230,9 +218,19 @@ const ForgotPasswordScreen = ({ navigation }) => {
     }
   };
 
-  // ═══════════════════════════════════════════════════════════════
-  // RENDER
-  // ═══════════════════════════════════════════════════════════════
+  const securityQuestions = [
+    { q: questions.q1, val: a1, set: setA1, id: 'q1' },
+    { q: questions.q2, val: a2, set: setA2, id: 'q2' },
+    { q: questions.q3, val: a3, set: setA3, id: 'q3' },
+  ];
+
+  const getConfirmPasswordIconColor = () => {
+    if (confirmPass.length > 0) {
+      return newPass === confirmPass ? GREEN : RED;
+    }
+    return '#999';
+  };
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
@@ -240,7 +238,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* HEADER */}
         <View style={styles.headerSection}>
           <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <MaterialCommunityIcons name="chevron-left" size={28} color={NAVY} />
@@ -252,12 +249,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
           <Text style={styles.subtitle}>TAB Troubleshoot · Polytechnic Astra</Text>
         </View>
 
-        {/* STEP INDICATOR */}
         <StepIndicator current={step} />
 
         <Animated.View style={{ opacity: fadeAnim }}>
 
-          {/* ══ STEP 1: FIND ACCOUNT ════════════════════════════════ */}
           {step === 1 && (
             <View style={styles.card}>
               <Text style={styles.cardDesc}>
@@ -299,7 +294,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
             </View>
           )}
 
-          {/* ══ STEP 2: SECURITY QUESTIONS ══════════════════════════ */}
           {step === 2 && (
             <View>
               <UserCard nama={namaUser} nim={nim} verified={false} />
@@ -313,12 +307,8 @@ const ForgotPasswordScreen = ({ navigation }) => {
                   Answer all three questions exactly as you did when registering.
                 </Text>
 
-                {[
-                  { q: questions.q1, val: a1, set: setA1 },
-                  { q: questions.q2, val: a2, set: setA2 },
-                  { q: questions.q3, val: a3, set: setA3 },
-                ].map((item, i) => (
-                  <View key={i} style={styles.questionBlock}>
+                {securityQuestions.map((item, i) => (
+                  <View key={item.id} style={styles.questionBlock}>
                     <View style={styles.questionLabelRow}>
                       <View style={styles.qNum}>
                         <Text style={styles.qNumText}>{i + 1}</Text>
@@ -358,7 +348,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
             </View>
           )}
 
-          {/* ══ STEP 3: NEW PASSWORD ════════════════════════════════ */}
           {step === 3 && (
             <View>
               <UserCard nama={namaUser} nim={nim} verified={true} />
@@ -369,7 +358,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
                   <Text style={styles.sectionTitle}>Set New Password</Text>
                 </View>
 
-                {/* Read-only auto-fill */}
                 <Text style={styles.label}>Full Name</Text>
                 <View style={[styles.inputWrapper, { backgroundColor: '#F0F0F0', marginBottom: 14 }]}>
                   <MaterialCommunityIcons name="account-outline" size={18} color="#AAA" style={styles.inputIcon} />
@@ -421,7 +409,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
                   <TouchableOpacity onPress={() => setShowConfirm(p => !p)}>
                     <MaterialCommunityIcons
                       name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20}
-                      color={confirmPass.length > 0 ? (newPass === confirmPass ? GREEN : RED) : '#999'}
+                      color={getConfirmPasswordIconColor()}
                     />
                   </TouchableOpacity>
                 </View>
@@ -459,7 +447,6 @@ const styles = StyleSheet.create({
   iconBox:          { backgroundColor: NAVY, padding: 18, borderRadius: 25, marginBottom: 14, elevation: 5 },
   title:            { fontSize: 24, fontWeight: 'bold', color: NAVY, letterSpacing: 0.5 },
   subtitle:         { fontSize: 13, color: '#666', marginTop: 4 },
-  // Step indicator
   stepContainer:    { marginBottom: 20 },
   stepRow:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   stepGroup:        { flexDirection: 'row', alignItems: 'center' },
@@ -471,7 +458,6 @@ const styles = StyleSheet.create({
   stepLineActive:   { backgroundColor: GOLD },
   stepLineInactive: { backgroundColor: '#DDD' },
   stepLabel:        { textAlign: 'center', fontSize: 13, fontWeight: 'bold', color: NAVY },
-  // User card
   userCard:         { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#EEE', gap: 12, elevation: 1 },
   userAvatar:       { width: 44, height: 44, borderRadius: 22, backgroundColor: NAVY, justifyContent: 'center', alignItems: 'center' },
   userAvatarText:   { color: GOLD, fontWeight: 'bold', fontSize: 15 },
@@ -480,32 +466,26 @@ const styles = StyleSheet.create({
   verifiedBadge:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4, gap: 4 },
   verifiedBadgeGreen: { backgroundColor: '#C8E6C9' },
   verifiedText:     { fontSize: 11, fontWeight: 'bold', color: '#2E7D32' },
-  // Card
   card:             { backgroundColor: '#FFF', borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#EEE', elevation: 1 },
   cardDesc:         { fontSize: 13, color: '#666', lineHeight: 20, marginBottom: 16 },
   sectionHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   sectionTitle:     { fontSize: 14, fontWeight: 'bold', color: NAVY },
-  // Questions
   questionBlock:    { marginBottom: 16 },
   questionLabelRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   qNum:             { width: 24, height: 24, borderRadius: 12, backgroundColor: NAVY, justifyContent: 'center', alignItems: 'center', marginTop: 1 },
   qNumText:         { color: GOLD, fontWeight: 'bold', fontSize: 12 },
   questionText:     { flex: 1, fontSize: 13, color: '#333', fontWeight: '600', lineHeight: 20 },
-  // Form
   label:            { marginBottom: 7, fontWeight: 'bold', color: NAVY, fontSize: 13 },
   inputWrapper:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F5F5', borderRadius: 14, paddingHorizontal: 14, borderWidth: 1, borderColor: '#EEE', marginBottom: 4 },
   inputError:       { borderColor: RED },
   inputIcon:        { marginRight: 10 },
   input:            { flex: 1, paddingVertical: 14, fontSize: 15, color: '#000' },
   errorText:        { fontSize: 11, color: RED, marginBottom: 10, marginLeft: 4 },
-  // Password checklist
   checklist:        { marginVertical: 10, gap: 6 },
   checkRow:         { flexDirection: 'row', alignItems: 'center', gap: 8 },
   checkText:        { fontSize: 13 },
-  // Hint
   hintBox:          { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#FFF9C4', borderRadius: 10, padding: 10, marginTop: 4 },
   hintBoxText:      { flex: 1, fontSize: 11, color: '#555', lineHeight: 16 },
-  // Buttons
   primaryBtn:       { backgroundColor: GOLD, padding: 18, borderRadius: 15, alignItems: 'center', marginBottom: 8 },
   primaryBtnText:   { color: NAVY, fontWeight: '900', fontSize: 15 },
   btnInner:         { flexDirection: 'row', alignItems: 'center', gap: 8 },

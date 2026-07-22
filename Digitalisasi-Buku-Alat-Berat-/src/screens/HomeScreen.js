@@ -18,7 +18,7 @@ const HomeScreen = ({ navigation }) => {
   const carouselData = [
     { id: '1', image: require('../../assets/slide1.jpg'), title: 'Energy Transformation', desc: 'Towards a greener future' },
     { id: '2', image: require('../../assets/slide2.jpg'), title: 'Expert Workforce', desc: 'Standard Astra workshops' },
-    { id: '3', image: require('../../assets/slide3.jpg'), title: 'AI Monitoring Tech', desc: 'Real-time condition monitoring' },
+    { id: '3', image: require('../../assets/pc200.jpeg'), title: 'AI Monitoring Tech', desc: 'Real-time condition monitoring' },
     { id: '4', image: require('../../assets/slide4.jpg'), title: 'Preventive Maintenance', desc: 'Optimizing lifetime and efficiency' },
     { id: '5', image: require('../../assets/slide5.jpg'), title: 'Safety First', desc: 'Prioritizing health and safety' },
     { id: '6', image: require('../../assets/slide6.jpg'), title: 'Manual Digitalization', desc: 'Access catalogs anytime' },
@@ -39,7 +39,7 @@ const HomeScreen = ({ navigation }) => {
         const session = await AsyncStorage.getItem('user_session');
         if (session) setUserData(JSON.parse(session));
       } catch (error) {
-        console.log("Error loading user data", error);
+        console.warn('Failed to fetch user session:', error);
       }
     };
     fetchUser();
@@ -56,7 +56,6 @@ const HomeScreen = ({ navigation }) => {
       
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
         
-        {/* HEADER SECTION */}
         <View style={styles.header}>
           <View style={styles.profileBox}>
             <View style={styles.avatarGradient}>
@@ -73,7 +72,6 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* FEATURED SLIDER */}
         <View style={styles.sliderContainer}>
           <FlatList
             ref={flatListRef}
@@ -105,13 +103,12 @@ const HomeScreen = ({ navigation }) => {
             )}
           />
           <View style={styles.pagination}>
-            {carouselData.map((_, i) => (
-              <View key={i} style={[styles.dot, activeIndex === i ? styles.activeDot : null]} />
+            {carouselData.map((item, i) => (
+              <View key={item.id} style={[styles.dot, activeIndex === i ? styles.activeDot : null]} />
             ))}
           </View>
         </View>
 
-        {/* SCAN BUTTON */}
         <View style={styles.actionSection}>
           <TouchableOpacity 
             style={styles.mainScanButton} 
@@ -130,7 +127,6 @@ const HomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* QUICK ACCESS MENU */}
         <View style={styles.menuSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>CORE FEATURES</Text>
@@ -160,7 +156,6 @@ const HomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* --- TAMBAHAN PEMANIS (MAINTENANCE TIP & STATUS) --- */}
         <View style={styles.extraSection}>
             <View style={styles.tipCard}>
                 <View style={styles.tipHeader}>
@@ -183,7 +178,6 @@ const HomeScreen = ({ navigation }) => {
                 </View>
             </View>
         </View>
-        {/* --------------------------------------------------- */}
 
       </ScrollView>
     </View>
@@ -290,10 +284,9 @@ const styles = StyleSheet.create({
   featureName: { fontWeight: '700', color: '#1A1A1A', fontSize: 15 },
   featureDesc: { color: '#999', fontSize: 11, marginTop: 2 },
 
-  // STYLES BARU UNTUK PEMANIS
   extraSection: { paddingHorizontal: 25, marginTop: 25 },
   tipCard: { 
-    backgroundColor: '#002B5B', // Biru sedikit lebih terang dari background utama
+    backgroundColor: '#002B5B',
     padding: 15, 
     borderRadius: 18,
     borderWidth: 1,

@@ -7,8 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { API_ENDPOINTS } from '../data/api';
@@ -29,11 +29,14 @@ const formatDateTime = (dateString) => {
   if (!dateString) return '-';
   try {
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
+    if (Number.isNaN(date.getTime())) return dateString;
     const d = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const t = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
     return `${d}  ${t}`;
-  } catch { return dateString; }
+  } catch (error) {
+    console.warn('Failed to format date:', error);
+    return dateString;
+  }
 };
 
 const MahasiswaCard = ({ item }) => (
@@ -59,6 +62,20 @@ const MahasiswaCard = ({ item }) => (
   </View>
 );
 
+const Header = ({ onBack }) => (
+  <View style={styles.header}>
+    <SafeAreaView>
+      <View style={styles.navRow}>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+          <MaterialCommunityIcons name="chevron-left" size={28} color="#FFF" />
+        </TouchableOpacity>
+        <Text style={styles.navTitle}>Detail History</Text>
+        <View style={{ width: 36 }} />
+      </View>
+    </SafeAreaView>
+  </View>
+);
+
 const RiwayatDetailScreen = ({ route, navigation }) => {
   const { id, diagnosisType, code, title, problem } = route.params || {};
   const [loading, setLoading] = useState(true);
@@ -73,36 +90,28 @@ const RiwayatDetailScreen = ({ route, navigation }) => {
         `${API_ENDPOINTS.historyDetail}?diagnosisType=${diagnosisType}&idItem=${id}`
       );
       const json = await response.json();
-      const list = Array.isArray(json?.data) ? json.data : json?.data ? [json.data] : [];
+      const list = getDataList(json);
       setData(list);
-    } catch (e) {
-      console.log('DETAIL ERROR:', e);
+    } catch (error) {
+      console.warn('Failed to fetch detail:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const typeLabel = diagnosisType === 'CODE' ? 'Failure Code' : `${diagnosisType}-Mode`;
+  const getDataList = (json) => {
+    if (Array.isArray(json?.data)) return json.data;
+    if (json?.data) return [json.data];
+    return [];
+  };
 
-  const Header = () => (
-    <View style={styles.header}>
-      <SafeAreaView>
-        <View style={styles.navRow}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <MaterialCommunityIcons name="chevron-left" size={28} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.navTitle}>Detail History</Text>
-          <View style={{ width: 36 }} />
-        </View>
-      </SafeAreaView>
-    </View>
-  );
+  const typeLabel = diagnosisType === 'CODE' ? 'Failure Code' : `${diagnosisType}-Mode`;
 
   if (loading) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={NAVY} />
-        <Header />
+        <Header onBack={() => navigation.goBack()} />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={NAVY} />
           <Text style={styles.loadingText}>Loading...</Text>
@@ -115,13 +124,13 @@ const RiwayatDetailScreen = ({ route, navigation }) => {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={NAVY} />
-        <Header />
+        <Header onBack={() => navigation.goBack()} />
         <View style={styles.center}>
           <Text style={{ fontSize: 40, marginBottom: 16 }}>📋</Text>
           <Text style={styles.emptyTitle}>No Data Yet</Text>
           <Text style={styles.emptySubtitle}>No students have searched this diagnosis.</Text>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <MaterialCommunityIcons name="chevron-left" size={28} color="#FFF" />
+          <TouchableOpacity style={styles.emptyBackBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.emptyBackBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -131,14 +140,13 @@ const RiwayatDetailScreen = ({ route, navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={NAVY} />
-      <Header />
+      <Header onBack={() => navigation.goBack()} />
 
       <ScrollView
         style={styles.body}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Info block */}
         <View style={styles.infoBlock}>
           <Text style={styles.infoCode}>{code || '-'}</Text>
           <Text style={styles.infoTitle}>{title || 'No Title'}</Text>
@@ -160,14 +168,13 @@ const RiwayatDetailScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Section label */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionLabel}>STUDENT RECORDS</Text>
           <View style={styles.sectionLine} />
         </View>
 
         {data.map((item, index) => (
-          <MahasiswaCard key={item.nim ?? index} item={item} index={index} />
+          <MahasiswaCard key={item.nim ?? `student-${index}`} item={item} />
         ))}
       </ScrollView>
     </View>
@@ -177,7 +184,6 @@ const RiwayatDetailScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
 
-  /* Navy header melengkung */
   header: {
     backgroundColor: NAVY,
     paddingBottom: 28,
@@ -209,7 +215,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', padding: 32,
   },
 
-  /* Info block */
   infoBlock: {
     backgroundColor: WHITE,
     borderRadius: 14,
@@ -251,7 +256,6 @@ const styles = StyleSheet.create({
   typePillText: { color: WHITE, fontWeight: '700', fontSize: 11 },
   infoCount: { fontSize: 12, color: SUBTEXT, fontWeight: '600' },
 
-  /* Section label */
   sectionRow: {
     flexDirection: 'row', alignItems: 'center',
     marginBottom: 14, gap: 10,
@@ -262,7 +266,6 @@ const styles = StyleSheet.create({
   },
   sectionLine: { flex: 1, height: 2, backgroundColor: YELLOW, borderRadius: 2 },
 
-  /* Card */
   card: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: WHITE, borderRadius: 14,
@@ -287,10 +290,8 @@ const styles = StyleSheet.create({
   countIcon: { fontSize: 20 },
   countText: { fontSize: 11, fontWeight: '700', color: NAVY, letterSpacing: 0.3 },
 
-  /* Loading */
   loadingText: { marginTop: 14, fontSize: 14, color: MUTED, fontWeight: '600' },
 
-  /* Empty */
   emptyTitle: { fontSize: 18, fontWeight: '700', color: TEXT, marginBottom: 8 },
   emptySubtitle: {
     fontSize: 13, color: MUTED, textAlign: 'center', lineHeight: 20, marginBottom: 28,

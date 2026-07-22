@@ -18,6 +18,7 @@ const LoginScreen = ({ navigation }) => {
   const [loading, setLoading]   = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [userData, setUserData] = useState({ nim: '', nama: '', role: '' });
+  const [authToken, setAuthToken] = useState('');
 
   const handleLogin = async () => {
     if (!nim.trim())      { Alert.alert('Warning', 'Student ID / Lecturer ID is required!'); return; }
@@ -34,11 +35,13 @@ const LoginScreen = ({ navigation }) => {
 
       if (response.ok && result.success) {
         setUserData(result.data.user);
+        setAuthToken(result.data.token);
         setModalVisible(true);
       } else {
         Alert.alert('Login Failed', result.message || 'Incorrect Student ID or password.');
       }
-    } catch {
+    } catch (error) {
+      console.warn('Login failed:', error);
       Alert.alert('Connection Error', 'Unable to connect to server. Make sure the backend is running.');
     } finally {
       setLoading(false);
@@ -47,11 +50,17 @@ const LoginScreen = ({ navigation }) => {
 
   const handleStart = async () => {
     try {
-      await AsyncStorage.setItem('user_session', JSON.stringify(userData));
+      await AsyncStorage.setItem('user_session', JSON.stringify({
+        nim: userData.nim,
+        nama: userData.nama,
+        role: userData.role,
+        token: authToken
+      }));
       setModalVisible(false);
       navigation.replace('Main', { role: userData.role });
-    } catch (e) {
-      console.log('Error saving session:', e);
+    } catch (error) {
+      console.warn('Failed to save user session:', error);
+      Alert.alert('Error', 'Failed to save session data. Please try again.');
     }
   };
 
@@ -62,7 +71,6 @@ const LoginScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* HEADER */}
         <View style={styles.headerSection}>
           <View style={styles.iconBox}>
             <MaterialCommunityIcons name="cog-refresh" size={50} color={GOLD} />
@@ -71,7 +79,6 @@ const LoginScreen = ({ navigation }) => {
           <Text style={styles.subtitle}>Polytechnic Astra</Text>
         </View>
 
-        {/* FORM */}
         <View style={styles.form}>
           <Text style={styles.label}>Student ID / Lecturer ID</Text>
           <View style={styles.inputWrapper}>
@@ -132,7 +139,6 @@ const LoginScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* WELCOME MODAL */}
         <Modal animationType="fade" transparent visible={modalVisible}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>

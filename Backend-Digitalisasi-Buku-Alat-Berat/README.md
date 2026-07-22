@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🚀 SIA Backend Repository
 
 Repository ini digunakan sebagai **pengembangan lanjutan (development branch)** dari proyek **Astratech Apps Backend**.  
@@ -46,3 +47,7 @@ Repo **SIA Backend** berfungsi untuk:
 ## 🧭 Catatan Tambahan
 
 Pastikan .gitlab-ci.yml dan Dockerfile di repo Astratech Apps Backend diganti dengan yang ada di repo SIA Backend ini.
+=======
+# projek-tab
+PROJEK TAB
+>>>>>>> b6bcd45e131704b6ef03c2c9a65ab509d6265b91

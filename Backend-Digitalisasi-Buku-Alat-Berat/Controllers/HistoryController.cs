@@ -1,10 +1,12 @@
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using astratech_apps_backend.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 namespace astratech_apps_backend.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/[controller]")]
     public class HistoryController : ControllerBase
     {
@@ -67,7 +69,6 @@ namespace astratech_apps_backend.Controllers
                 });
             }
         }
-        //
 
         [HttpPost("save")]
         public async Task<IActionResult> SaveDiagnosisHistory(

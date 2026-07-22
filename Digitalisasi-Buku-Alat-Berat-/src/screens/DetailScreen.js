@@ -1,12 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export default function DetailScreen({ route, navigation }) {
   const { item } = route.params;
 
+  const troubleshootingSteps = [
+    { id: 'step-1', text: "Cek kondisi visual" },
+    { id: 'step-2', text: "Ukur tekanan hydraulic" },
+    { id: 'step-3', text: "Ganti filter jika perlu" }
+  ];
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="black" />
@@ -27,11 +34,10 @@ export default function DetailScreen({ route, navigation }) {
           <Text style={styles.descText}>{item.description}</Text>
 
           <Text style={[styles.sectionTitle, {marginTop: 20}]}>Langkah Troubleshooting</Text>
-          {/* Contoh mapping langkah (Sesuaikan field DB lu) */}
-          {["Cek kondisi visual", "Ukur tekanan hydraulic", "Ganti filter jika perlu"].map((step, index) => (
-            <View key={index} style={styles.stepRow}>
+          {troubleshootingSteps.map((step, index) => (
+            <View key={step.id} style={styles.stepRow}>
               <View style={styles.circle}><Text style={styles.stepNum}>{index + 1}</Text></View>
-              <Text style={styles.stepText}>{step}</Text>
+              <Text style={styles.stepText}>{step.text}</Text>
             </View>
           ))}
         </View>

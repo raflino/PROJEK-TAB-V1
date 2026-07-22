@@ -11,24 +11,9 @@ using astratech_apps_backend.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// =====================================================
-// 1. Add services to container
-// =====================================================
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
-// =====================================================
-// 2. Dapper Configuration
-// Untuk mapping kolom SQL snake_case ke C# PascalCase
-// Contoh: session_id -> SessionId
-// =====================================================
-
 DefaultTypeMap.MatchNamesWithUnderscores = true;
-
-// =====================================================
-// 3. Swagger with JWT
-// =====================================================
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -64,9 +49,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// =====================================================
-// 4. JWT Configuration
-// =====================================================
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "komatsu_diagnostic_secret_key_2024";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "komatsu-backend";
@@ -91,26 +73,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-
-// =====================================================
-// 5. Dependency Injection - Existing Feature
-// =====================================================
-
-builder.Services.AddScoped<IFailureCodeRepository, FailureCodeRepository>();
+builder.Services.AddScoped<IDiagnosticRepository, DiagnosticRepository>();
+builder.Services.AddScoped<IHistoryRepository, HistoryRepository>();
 builder.Services.AddScoped<IFailureDiagnosisService, FailureDiagnosisService>();
 builder.Services.AddSingleton<JwtHelper>();
-builder.Services.AddScoped<IHistoryRepository, HistoryRepository>();
-
-// =====================================================
-// 6. Dependency Injection - Diagnostic S-Mode Feature
-// =====================================================
-
-builder.Services.AddScoped<IDiagnosticRepository, DiagnosticRepository>();
-
-// =====================================================
-// 7. CORS
-// =====================================================
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -122,15 +88,8 @@ builder.Services.AddCors(options =>
     });
 });
 
-// =====================================================
-// 8. Build App
-// =====================================================
-
 var app = builder.Build();
 
-// =====================================================
-// 9. Configure Pipeline
-// =====================================================
 
 if (app.Environment.IsDevelopment())
 {
@@ -139,14 +98,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
-
 app.UseHttpsRedirection();
-
 app.UseCors("AllowAll");
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();

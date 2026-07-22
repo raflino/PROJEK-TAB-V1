@@ -22,7 +22,6 @@ namespace astratech_apps_backend.Controllers
             {
                 using (SqlConnection conn = new SqlConnection(_connectionString))
                 {
-                    // Gunakan SP baru yang return email & no_telpon
                     SqlCommand cmd = new SqlCommand("sp_GetUserProfile", conn);
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.Parameters.AddWithValue("@nim", nim);

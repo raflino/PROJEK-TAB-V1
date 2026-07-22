@@ -24,7 +24,6 @@ const KatalogScreen = ({ navigation }) => {
 
   const openPDF = async (fileSource, fileName) => {
     try {
-      // 1. Load asset
       const asset = Asset.fromModule(fileSource);
       await asset.downloadAsync();
 
@@ -32,7 +31,6 @@ const KatalogScreen = ({ navigation }) => {
         throw new Error("Gagal memuat file");
       }
 
-      // 2. Copy ke cache directory
       const fileUri = FileSystem.cacheDirectory + fileName;
       
       await FileSystem.copyAsync({
@@ -40,11 +38,7 @@ const KatalogScreen = ({ navigation }) => {
         to: fileUri
       });
 
-      console.log("File berhasil dicopy ke:", fileUri);
-
-      // 3. Buka file dengan cara yang sesuai
       if (Platform.OS === 'android') {
-        // Untuk Android di Expo Go, gunakan IntentLauncher
         try {
           const contentUri = await FileSystem.getContentUriAsync(fileUri);
           await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
@@ -53,9 +47,9 @@ const KatalogScreen = ({ navigation }) => {
             type: 'application/pdf',
           });
         } catch (intentError) {
-          console.log("Intent error, coba sharing:", intentError);
-          // Fallback ke sharing
-          if (await Sharing.isAvailableAsync()) {
+          console.warn('Intent launcher failed, falling back to sharing:', intentError);
+          const isSharingAvailable = await Sharing.isAvailableAsync();
+          if (isSharingAvailable) {
             await Sharing.shareAsync(fileUri, {
               mimeType: 'application/pdf',
               dialogTitle: `Buka ${fileName}`,
@@ -65,8 +59,8 @@ const KatalogScreen = ({ navigation }) => {
           }
         }
       } else {
-        // Untuk iOS, gunakan Sharing
-        if (await Sharing.isAvailableAsync()) {
+        const isSharingAvailable = await Sharing.isAvailableAsync();
+        if (isSharingAvailable) {
           await Sharing.shareAsync(fileUri, {
             mimeType: 'application/pdf',
             dialogTitle: `Buka ${fileName}`,
@@ -77,7 +71,6 @@ const KatalogScreen = ({ navigation }) => {
       }
 
     } catch (error) {
-      console.error("Error:", error);
       Alert.alert(
         "Gagal Membuka PDF",
         error.message + "\n\n" +
