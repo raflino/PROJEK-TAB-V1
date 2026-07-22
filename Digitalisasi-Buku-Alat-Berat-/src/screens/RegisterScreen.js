@@ -261,7 +261,10 @@ const RegisterScreen = ({ navigation }) => {
           placeholder="e.g. Budi Santoso"
           placeholderTextColor="#999"
           value={nama}
-          onChangeText={t => setNama(toTitleCase(t))}
+          onChangeText={(text) => {
+              const onlyLetters = text.replace(/[^a-zA-Z\s]/g, "");
+              setNama(onlyLetters);
+          }}
           autoCapitalize="words"
         />
       </View>

@@ -36,8 +36,6 @@ namespace astratech_apps_backend.Controllers
                                 id = reader["id"],
                                 nim = reader["nim"]?.ToString()?.Trim() ?? "",
                                 nama = reader["nama"]?.ToString()?.Trim() ?? "",
-                                email = reader["email"]?.ToString()?.Trim() ?? "",
-                                no_telpon = reader["no_telpon"]?.ToString()?.Trim() ?? "",
                                 role = reader["role"]?.ToString()?.Trim() ?? ""
                             });
                         }
