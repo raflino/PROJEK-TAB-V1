@@ -20,6 +20,22 @@ const KatalogScreen = ({ navigation }) => {
       localFile: require('../../assets/pdf/manual_pc200_8.pdf'), 
       fileName: 'manual_pc200_8.pdf'
     },
+     { 
+      id: '2', 
+      title: 'PC200-8 Service Manual', 
+      subtitle: 'Shop Manual 107E-1 SERIES',
+      size: '50.8 MB', 
+      localFile: require('../../assets/pdf/PB PC200-8 LEPBP20801.pdf'), 
+      fileName: 'PB PC200-8 LEPBP20801.pdf'
+    },
+     { 
+      id: '3', 
+      title: 'PC200-8 Service Manual', 
+      subtitle: 'Shop Manual PC200-8',
+      size: '9.92 MB', 
+      localFile: require('../../assets/pdf/SAA6D107E-1 SEN00161-03.pdf'), 
+      fileName: 'SAA6D107E-1 SEN00161-03.pdf'
+    },
   ];
 
   const openPDF = async (fileSource, fileName) => {

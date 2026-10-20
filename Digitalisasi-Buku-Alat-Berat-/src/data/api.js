@@ -1,5 +1,5 @@
 // src/data/api.js
-const IP_ADDRESS = "192.168.1.4";
+const IP_ADDRESS = "10.1.27.130";
 const PORT = "5234";
 
 export const BASE_URL = `http://${IP_ADDRESS}:${PORT}/api`;

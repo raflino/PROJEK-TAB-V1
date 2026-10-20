@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/d811ac65-7ab2-437b-9438-90a98562289d/resourceGroups/projek-cc/providers/Microsoft.Web/sites/Digitalisasi-Buku-Alat-Berat",
+    "appService.deploySubpath": "Backend-Digitalisasi-Buku-Alat-Berat\\publish"
+}

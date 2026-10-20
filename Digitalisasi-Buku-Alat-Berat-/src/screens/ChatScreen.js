@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList,
-  ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar,
+  ActivityIndicator, KeyboardAvoidingView, Platform, StatusBar,
   Keyboard, Alert, Image, Modal, ScrollView, Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-view';
